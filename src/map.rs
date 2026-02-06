@@ -33,9 +33,6 @@ fn spawn_map(
 #[type_path = "api"]
 struct CollisionHull;
 
-
-
-
 fn init_map(
   query: Query<Entity, (With<CollisionHull>, With<Mesh3d>)>, 
   mut commands: Commands,
@@ -44,7 +41,7 @@ fn init_map(
   for hull_entity in query.iter() {
     info!("Collision hull found: {:?}", hull_entity);
     commands.entity(hull_entity)
-      .insert(ColliderConstructor::ConvexDecompositionFromMesh)
+      .insert(ColliderConstructor::TrimeshFromMesh)
       .insert(RigidBody::Static);
   }
 

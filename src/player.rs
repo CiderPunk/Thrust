@@ -39,7 +39,7 @@ struct Shoot;
 
 
 #[derive(Component)]
-struct Player;
+pub struct Player;
 
 
 
@@ -99,7 +99,7 @@ fn spawn_player(
       start_transform.clone(),
       RigidBody::Dynamic,
       MaxAngularSpeed(2.0),
-      AngularDamping(10.0),
+      AngularDamping(20.0),
       LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
       player_resources.collider.clone().unwrap(),
       NotShadowCaster,
@@ -108,7 +108,7 @@ fn spawn_player(
           Action::<Yaw>::new(),
           DeadZone::default(),
           SmoothNudge::default(),
-          Scale::splat(400.0),
+          Scale::splat(800.0),
           Bindings::spawn((
             Bidirectional::new(KeyCode::KeyD, KeyCode::KeyA),
             Bidirectional::new(KeyCode::ArrowRight, KeyCode::ArrowLeft),
