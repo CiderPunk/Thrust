@@ -1,5 +1,5 @@
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::system::command::insert_batch, prelude::*};
 
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState};
 pub struct MapPlugin;
@@ -34,15 +34,15 @@ fn spawn_map(
 struct CollisionHull;
 
 fn init_map(
-  query: Query<Entity, (With<CollisionHull>, With<Mesh3d>)>, 
+  mut query: Query<(&mut Visibility, Entity), (With<CollisionHull>, With<Mesh3d>)>, 
   mut commands: Commands,
-  mut next_state: ResMut<NextState<GameState>>,
 ) {
-  for hull_entity in query.iter() {
+  for (mut visiblity,hull_entity) in query.iter_mut() {
     info!("Collision hull found: {:?}", hull_entity);
     commands.entity(hull_entity)
       .insert(ColliderConstructor::TrimeshFromMesh)
       .insert(RigidBody::Static);
+    *visiblity = Visibility::Hidden;
   }
 
 }

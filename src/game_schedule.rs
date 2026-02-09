@@ -20,4 +20,5 @@ impl Plugin for GameSchedulePlugin
 pub enum GameSchedule{
   EntityUpdates,
   DespawnEntites,
+  PostPhysics,
 }

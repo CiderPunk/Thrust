@@ -7,7 +7,7 @@ mod game_schedule;
 mod camera;
 
 
-use bevy::prelude::*;
+use bevy::{color::palettes::css::WHITE, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_skein::SkeinPlugin;
 use avian3d::prelude::*;
@@ -21,7 +21,7 @@ fn main() {
       SkeinPlugin::default(), 
       PhysicsPlugins::default(),
       EnhancedInputPlugin,
-      PhysicsDebugPlugin,
+      //PhysicsDebugPlugin,
     ))
     .add_plugins((
       GameSchedulePlugin,
@@ -32,6 +32,12 @@ fn main() {
       PlayerPlugin,
       MapPlugin,
     ))
+    .insert_resource(ClearColor(Color::srgb(0., 0., 0.)))
+    .insert_resource(GlobalAmbientLight {
+        color: WHITE.into(),
+        brightness: 20.0,
+        ..default()
+    })
     .run();
 
 }

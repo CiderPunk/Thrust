@@ -1,9 +1,9 @@
-use avian3d::prelude::{AngularDamping, Collider, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces};
+use avian3d::prelude::{AngularDamping, Collider, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, TransformInterpolation};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*};
 use bevy_enhanced_input::prelude::*;
 
 
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState};
 
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
@@ -100,6 +100,7 @@ fn spawn_player(
       RigidBody::Dynamic,
       MaxAngularSpeed(2.0),
       AngularDamping(20.0),
+      TransformInterpolation,
       LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
       player_resources.collider.clone().unwrap(),
       NotShadowCaster,
@@ -123,9 +124,11 @@ fn spawn_player(
       ]),
       children![(
             PointLight {
-              intensity: 1_000_000.0,
+              intensity: 3_000_000.0,
+              range: 300.,
               color: WHITE.into(),
               shadows_enabled: true,
+              
               ..default()
             },
             Transform::from_xyz(0.,0.,0.)

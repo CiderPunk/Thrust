@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{game_state::GameState, player::Player};
+use crate::{game_schedule::GameSchedule, game_state::GameState, player::Player};
 
 
 pub struct CameraPlugin;
@@ -9,7 +9,7 @@ impl Plugin for CameraPlugin{
     app
     .add_systems(Startup, init_camera)
     .add_systems(OnEnter(GameState::Initialize), remove_scene_cameras)
-    .add_systems(Update, update_camera);
+    .add_systems(PostUpdate, update_camera);
   }
 }
 
