@@ -1,0 +1,1 @@
+cargo install wasm-server-runner --force
