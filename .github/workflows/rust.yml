@@ -8,7 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  binary: roids
+  binary: caves
   use_git_lfs: false
   itch_target: CiderPunk/caves
   
