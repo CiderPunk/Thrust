@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_asset_loader::loading_state::LoadingStateAppExt;
 use crate::game_state::GameState;
 
 pub struct StaticLightsPlugin;
@@ -12,7 +13,8 @@ struct StaticSpotLight{
 
 impl Plugin for StaticLightsPlugin {
   fn build(&self, app: &mut App) {
-    app.add_systems(OnEnter(GameState::Initialize), init_static_lights);
+    app
+      .add_systems(OnEnter(GameState::Initialize), init_static_lights);
   }
 }
 /*

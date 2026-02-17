@@ -6,6 +6,7 @@ mod map;
 mod game_schedule;
 mod camera;
 mod static_lights;
+mod shaders;
 
 
 use bevy::{asset::AssetMetaCheck, color::palettes::css::WHITE, prelude::*};
