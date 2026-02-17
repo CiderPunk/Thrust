@@ -5,6 +5,7 @@ mod player;
 mod map;
 mod game_schedule;
 mod camera;
+mod static_lights;
 
 
 use bevy::{asset::AssetMetaCheck, color::palettes::css::WHITE, prelude::*};
@@ -12,7 +13,7 @@ use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_skein::SkeinPlugin;
 use avian3d::prelude::*;
 
-use crate::{asset_management::AssetManagementPlugin, camera::CameraPlugin, game::GamePlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, map::MapPlugin, player::PlayerPlugin};
+use crate::{asset_management::AssetManagementPlugin, camera::CameraPlugin, game::GamePlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, map::MapPlugin, player::PlayerPlugin, static_lights::StaticLightsPlugin};
 
 
 const APP_NAME: &str = "Caves";
@@ -50,6 +51,7 @@ fn main() {
       GameStatePlugin,
       PlayerPlugin,
       MapPlugin,
+      StaticLightsPlugin,
     ))
     .insert_resource(ClearColor(Color::srgb(0., 0., 0.)))
     .insert_resource(GlobalAmbientLight {
