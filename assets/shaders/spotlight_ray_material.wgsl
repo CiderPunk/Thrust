@@ -15,7 +15,7 @@ fn fragment(
   mesh: VertexOutput,
 ) -> @location(0) vec4<f32> {    
   let p = sin(mesh.uv.x * 3.14159 / 2);
-  let dither = (interleaved_gradient_noise(mesh.position.xy) - 0.5) / 256.0;
+  let dither = (interleaved_gradient_noise(mesh.position.xy) - 0.5) / 16.0;
   let colour = p * p * vec4(1.,1.,1.,0.5);
   return vec4(colour.rgba + dither);
 }
