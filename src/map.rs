@@ -1,5 +1,5 @@
 use avian3d::prelude::*;
-use bevy::{ecs::system::command::insert_batch, prelude::*};
+use bevy::prelude::*;
 
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState};
 pub struct MapPlugin;
@@ -7,7 +7,7 @@ impl Plugin for MapPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_systems(OnEnter(AssetLoadState::Loaded), spawn_map)
-      .add_systems(OnEnter(GameState::Initialize), init_map);
+      .add_systems(OnEnter(GameState::Initialize), init_collision_hulls);
   }
 }
 
@@ -33,7 +33,7 @@ fn spawn_map(
 #[type_path = "api"]
 struct CollisionHull;
 
-fn init_map(
+fn init_collision_hulls(
   mut query: Query<(&mut Visibility, Entity), (With<CollisionHull>, With<Mesh3d>)>, 
   mut commands: Commands,
 ) {
