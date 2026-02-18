@@ -3,21 +3,19 @@
     forward_io::VertexOutput,
 }
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> color1: vec4<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(1) var<uniform> color2: vec4<f32>;
+
+// Improved high-frequency noise (Interleaved Gradient Noise)
+fn interleaved_gradient_noise(frag_coord: vec2<f32>) -> f32 {
+    let magic = vec3<f32>(0.06711056, 0.00583715, 52.9829189);
+    return fract(magic.z * fract(dot(frag_coord, magic.xy)));
+}
 
 @fragment
 fn fragment(
-    mesh: VertexOutput,
-) -> @location(0) vec4<f32> {
-    
-    let f = mesh.world_position.xz * (1.0 / 3.0);
-    let s = floor(abs(sin(f.x+f.y + sin(globals.time) *5.5))+0.2);
-    let t = floor(abs(sin(f.x-f.y + cos(globals.time) *3.142))+0.20);
-    
-    //let t = abs(sin(f.x+f.y + cos(globals.time + 3.142 ) * -32.0));
-    //let t = sin(f.x-f.y + globals.time * 10.0);
-    //return vec4<f32>(((1.0-mesh.uv.y) * s * color) .xyz, 1.0);
-    //return (1.0-mesh.uv.y) * s * color;
-    return sin(mesh.uv.y * 3.14159) * (min((s * color1) + (t * color2), vec4(1.,1.,1.,1.)));
+  mesh: VertexOutput,
+) -> @location(0) vec4<f32> {    
+  let p = sin(mesh.uv.x * 3.14159 / 2);
+  let dither = (interleaved_gradient_noise(mesh.position.xy) - 0.5) / 256.0;
+  let colour = p * p * vec4(1.,1.,1.,0.5);
+  return vec4(colour.rgba + dither);
 }
