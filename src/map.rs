@@ -11,6 +11,10 @@ impl Plugin for MapPlugin {
   }
 }
 
+
+
+
+
 fn spawn_map(
   mut commands: Commands,
   game_assets: Res<GameAssets>,
@@ -46,3 +50,5 @@ fn init_collision_hulls(
   }
 
 }
+
+

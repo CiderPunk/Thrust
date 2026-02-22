@@ -21,7 +21,7 @@ fn init_materials(
 
   let shader_materials = ShaderMaterials{
     rays: rays_materials.add(RaysShaderMaterial{
-        alpha_mode: AlphaMode::AlphaToCoverage,
+      alpha_mode: AlphaMode::AlphaToCoverage,
     }),
   };
   commands.insert_resource::<ShaderMaterials>(shader_materials);
@@ -39,6 +39,7 @@ pub struct RaysShaderMaterial {
 }
 
 impl Material for RaysShaderMaterial{
+  
   fn fragment_shader() -> ShaderRef {
     RAYS_SHADER_PATH.into()
   }
