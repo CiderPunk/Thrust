@@ -21,7 +21,7 @@ fn init_materials(
 
   let shader_materials = ShaderMaterials{
     rays: rays_materials.add(RaysShaderMaterial{
-      alpha_mode: AlphaMode::AlphaToCoverage,
+      alpha_mode: AlphaMode::Premultiplied,
     }),
   };
   commands.insert_resource::<ShaderMaterials>(shader_materials);
@@ -46,4 +46,14 @@ impl Material for RaysShaderMaterial{
   fn alpha_mode(&self) -> AlphaMode {
     self.alpha_mode
   }
+fn specialize(
+  _: &bevy::pbr::MaterialPipeline,
+  descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+  _: &bevy::mesh::MeshVertexBufferLayoutRef,
+  _: bevy::pbr::MaterialPipelineKey<Self>,
+) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
+  descriptor.primitive.cull_mode = None;
+  Ok(())
+}
+
 }

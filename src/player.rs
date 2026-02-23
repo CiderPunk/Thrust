@@ -103,7 +103,6 @@ fn init_player_reosurces(
   Ok(())
 }
 
-
 fn spawn_player(
   query: Query<&GlobalTransform, With<PlayerStart>>,
   mut commands: Commands,

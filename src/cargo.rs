@@ -29,6 +29,9 @@ struct CargoStart(CargoType);
 
 
 
+#[derive(Component)]
+struct CargoItem;
+
 #[derive(Resource, Default)]
 struct CargoResources{
   collider: Option<Collider>,
@@ -68,8 +71,23 @@ fn init_cargo_reosurces(
 }
 
 
+
+
 fn spawn_cargo(
   query: Query<&GlobalTransform, With<CargoStart>>,
   mut commands: Commands,
   cargo_resources: Res<CargoResources>,
-){}
+){
+  for transform in query{
+
+
+    commands.spawn((
+      CargoItem,
+      Mesh3d(cargo_resources.crystal_mesh.clone()),
+      
+
+
+
+    ));
+  }
+}
