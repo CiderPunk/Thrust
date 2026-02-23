@@ -74,26 +74,25 @@ fn init_player_reosurces(
   meshes: Res<Assets<Mesh>>,
   //materials: Res<Assets<StandardMaterial>>,
 ) -> Result<()> {
-  let model = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
+  let models = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
 
   let collision_primative = &gltf_meshes.get( 
-      model.named_meshes.get("ship-collision")
+      models.named_meshes.get("ship-collision")
       .ok_or("Couldn't get ship collision mesh")?,)
     .ok_or("Couldn't get ship collision mesh data")?
     .primitives[0];
 
   let display_primative = &gltf_meshes.get( 
-      model.named_meshes.get("ship-display")
+      models.named_meshes.get("ship-display")
       .ok_or("Couldn't get ship display mesh")?)
     .ok_or("Couldn't get ship display mesh data")?
     .primitives[0];
 
-let flame_primative =  &gltf_meshes.get( 
-      model.named_meshes.get("ship-flame")
+  let flame_primative =  &gltf_meshes.get( 
+      models.named_meshes.get("ship-flame")
       .ok_or("Couldn't get ship flame mesh")?)
     .ok_or("Couldn't get ship flame mesh data")?
     .primitives[0];
-
 
   player_resources.flame_mesh = flame_primative.mesh.clone();
   player_resources.flame_material = flame_primative.material.clone().ok_or("no flame material")?;
@@ -103,7 +102,6 @@ let flame_primative =  &gltf_meshes.get(
   player_resources.collider = Some(Collider::convex_hull_from_mesh(collision_mesh).ok_or("couldn't create collider from mesh")?);
   Ok(())
 }
-
 
 fn spawn_player(
   query: Query<&GlobalTransform, With<PlayerStart>>,

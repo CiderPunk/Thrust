@@ -20,11 +20,15 @@ pub struct GameCamera;
 fn init_camera(mut commands:Commands){
   commands.spawn((
     GameCamera,
-    Camera3d::default(),
-    Camera {
-      order: 1,
+    Camera3d{
+      
       ..default()
     },
+    Camera {
+      order: 1, 
+      ..default()
+    },
+    Tonemapping::BlenderFilmic,
     Transform::from_translation(Vec3::new(0.,0.,100.)).looking_at(Vec3::ZERO, Vec3::Y),
   ));
 }
