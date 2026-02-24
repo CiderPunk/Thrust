@@ -15,6 +15,6 @@ fn fragment(
 ) -> @location(0) vec4<f32> {    
   let p = 1.-cos(mesh.uv.x * (3.14159 / 2));
   //let dither = (interleaved_gradient_noise(mesh.position.xy) - 0.5) / 16.0;
-  let colour = p * p * vec4(1.,1.,1.,0.5);
+  let colour = p * p * vec4(1.,1.,1.,0.2);
   return colour.rgba;
 }

@@ -1,7 +1,7 @@
 use avian3d::prelude::Collider;
 use bevy::{gltf::GltfMesh, prelude::*};
 
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState,  get_gltf_primative};
 
 
 pub struct CargoPlugin;
@@ -18,26 +18,25 @@ impl Plugin for CargoPlugin{
 pub enum CargoType{  
   #[default]
   Sphere,
+  MetalCrate,
 }
-
-
 
 #[derive(Component, Default, Reflect, Debug)]
 #[reflect(Component, Default)]
 #[type_path = "api"]
 struct CargoStart(CargoType);
 
-
-
 #[derive(Component)]
 struct CargoItem;
 
 #[derive(Resource, Default)]
 struct CargoResources{
-  collider: Option<Collider>,
+  crate_collider: Option<Collider>,
   band_mesh: Handle<Mesh>,
   crystal_mesh:Handle<Mesh>,
   ring_material: Handle<StandardMaterial>,
+  crate_mesh:Handle<Mesh>,
+  crate_material:Handle<StandardMaterial>,
 }
 
 
@@ -51,22 +50,17 @@ fn init_cargo_reosurces(
   meshes: Res<Assets<Mesh>>,
 ) -> Result<()>{
   let models = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
-  let band_primative = &gltf_meshes.get( 
-      models.named_meshes.get("cargo-band")
-      .ok_or("Couldn't get cargo band mesh")?,)
-      .ok_or("Couldn't get cargo band mesh data")?
-    .primitives[0];
 
-
-  let crystal_primative = &gltf_meshes.get(
-    models.named_meshes.get("cargo-crystal")
-    .ok_or("Couldn't get cargo crystal mesh")?,)
-      .ok_or("Couldn't get cargo crystal mesh data")?
-      .primitives[0];
+  let band_primative = get_gltf_primative!(gltf_meshes, models, "cargo-band" );
+  let crystal_primative = get_gltf_primative!(gltf_meshes, models, "cargo-crystal" );
+  let crate_primative = get_gltf_primative!(gltf_meshes, models, "crate-metal" );
 
   cargo_resources.band_mesh = band_primative.mesh.clone();
   cargo_resources.ring_material = band_primative.material.clone().ok_or("No ring material")?;
   cargo_resources.crystal_mesh = crystal_primative.mesh.clone();
+  cargo_resources.crate_material = crate_primative.material.clone().ok_or("no crate material")?;
+  cargo_resources.crate_mesh = crate_primative.mesh.clone();
+  cargo_resources.crate_collider =  Some(Collider::cuboid(2.0, 2.,2.));
   Ok(())
 }
 
@@ -79,15 +73,11 @@ fn spawn_cargo(
   cargo_resources: Res<CargoResources>,
 ){
   for transform in query{
-
-
     commands.spawn((
       CargoItem,
-      Mesh3d(cargo_resources.crystal_mesh.clone()),
-      
-
-
-
+      Mesh3d(cargo_resources.crate_mesh.clone()),
+      MeshMaterial3d(cargo_resources.crate_material.clone()),
+      Transform::from_translation(transform.translation()),      
     ));
   }
 }
