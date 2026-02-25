@@ -1,4 +1,4 @@
-use avian3d::prelude::Collider;
+use avian3d::prelude::*;
 use bevy::{gltf::GltfMesh, prelude::*};
 
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState,  get_gltf_primative};
@@ -60,24 +60,29 @@ fn init_cargo_reosurces(
   cargo_resources.crystal_mesh = crystal_primative.mesh.clone();
   cargo_resources.crate_material = crate_primative.material.clone().ok_or("no crate material")?;
   cargo_resources.crate_mesh = crate_primative.mesh.clone();
-  cargo_resources.crate_collider =  Some(Collider::cuboid(2.0, 2.,2.));
+  cargo_resources.crate_collider =  Some(Collider::cuboid(2.,2.,2.));
   Ok(())
 }
 
-
-
-
 fn spawn_cargo(
-  query: Query<&GlobalTransform, With<CargoStart>>,
+  query: Query<&Transform, With<CargoStart>>,
   mut commands: Commands,
   cargo_resources: Res<CargoResources>,
 ){
+
   for transform in query{
+    info!("Spawning cargo at {}", transform.translation);
     commands.spawn((
       CargoItem,
       Mesh3d(cargo_resources.crate_mesh.clone()),
       MeshMaterial3d(cargo_resources.crate_material.clone()),
-      Transform::from_translation(transform.translation()),      
+      
+      Transform::from_translation(transform.translation).with_scale(Vec3::splat(1.6)),
+      RigidBody::Dynamic,
+      TransformInterpolation,
+      LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
+      cargo_resources.crate_collider.clone().unwrap(),
     ));
+
   }
 }

@@ -90,7 +90,7 @@ fn init_player_reosurces(
 }
 
 fn spawn_player(
-  query: Query<&GlobalTransform, With<PlayerStart>>,
+  query: Query<&Transform, With<PlayerStart>>,
   mut commands: Commands,
   player_resources: Res<PlayerResources>,
  ){
