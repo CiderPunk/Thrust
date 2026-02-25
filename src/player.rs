@@ -1,7 +1,7 @@
 use avian3d::prelude::{AngularDamping, Collider, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, TransformInterpolation};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, render::view::visibility, time::Stopwatch};
 use bevy_enhanced_input::prelude::{Release, *};
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative};
 
 
 const PLAYER_THRUST: f32 = 200.;
@@ -76,24 +76,10 @@ fn init_player_reosurces(
 ) -> Result<()> {
   let models = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
 
-  let collision_primative = &gltf_meshes.get( 
-      models.named_meshes.get("ship-collision")
-      .ok_or("Couldn't get ship collision mesh")?,)
-    .ok_or("Couldn't get ship collision mesh data")?
-    .primitives[0];
-
-  let display_primative = &gltf_meshes.get( 
-      models.named_meshes.get("ship-display")
-      .ok_or("Couldn't get ship display mesh")?)
-    .ok_or("Couldn't get ship display mesh data")?
-    .primitives[0];
-
-  let flame_primative =  &gltf_meshes.get( 
-      models.named_meshes.get("ship-flame")
-      .ok_or("Couldn't get ship flame mesh")?)
-    .ok_or("Couldn't get ship flame mesh data")?
-    .primitives[0];
-
+  let collision_primative = get_gltf_primative!(gltf_meshes, models,"ship-collision" );
+  let display_primative = get_gltf_primative!(gltf_meshes, models, "ship-display" );
+  let flame_primative = get_gltf_primative!(gltf_meshes, models, "ship-flame" );
+ 
   player_resources.flame_mesh = flame_primative.mesh.clone();
   player_resources.flame_material = flame_primative.material.clone().ok_or("no flame material")?;
   player_resources.ship_mesh = display_primative.mesh.clone(); 
@@ -104,7 +90,7 @@ fn init_player_reosurces(
 }
 
 fn spawn_player(
-  query: Query<&GlobalTransform, With<PlayerStart>>,
+  query: Query<&Transform, With<PlayerStart>>,
   mut commands: Commands,
   player_resources: Res<PlayerResources>,
  ){
@@ -120,7 +106,7 @@ fn spawn_player(
       TransformInterpolation,
       LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
       player_resources.collider.clone().unwrap(),
-      NotShadowCaster,
+      //NotShadowCaster,
       actions!(Player[
         (
           Action::<Yaw>::new(),
@@ -146,7 +132,7 @@ fn spawn_player(
               range: 50.,
               color: WHITE.into(),
               shadows_enabled: true,
-              
+              shadow_map_near_z: 2.0,
               ..default()
             },
             Transform::from_xyz(0.,0.,0.),
@@ -156,7 +142,7 @@ fn spawn_player(
             PlayerFlame{ ignite_time:Stopwatch::default() } ,
             Mesh3d(player_resources.flame_mesh.clone()),
             MeshMaterial3d(player_resources.flame_material.clone()),
-                  NotShadowCaster,
+            NotShadowCaster,
           ),
           
           ],
