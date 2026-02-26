@@ -1,7 +1,7 @@
 use avian3d::prelude::{AngularDamping, Collider, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, TransformInterpolation};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, render::view::visibility, time::Stopwatch};
 use bevy_enhanced_input::prelude::{Release, *};
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative, shaders::ShaderMaterials};
 
 
 const PLAYER_THRUST: f32 = 200.;
@@ -69,6 +69,7 @@ struct PlayerResources{
   ship_material: Handle<StandardMaterial>,
   flame_mesh: Handle<Mesh>,
   flame_material: Handle<StandardMaterial>,
+  shield_mesh: Handle<Mesh>,
 }
 
 
@@ -77,7 +78,7 @@ fn init_player_reosurces(
   game_assets: Res<GameAssets>,
   gltf_assets: Res<Assets<Gltf>>,
   gltf_meshes: Res<Assets<GltfMesh>>,
-  meshes: Res<Assets<Mesh>>,
+  mut meshes: ResMut<Assets<Mesh>>,
   //materials: Res<Assets<StandardMaterial>>,
 ) -> Result<()> {
   let models = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
@@ -92,6 +93,7 @@ fn init_player_reosurces(
   player_resources.ship_material = display_primative.material.clone().ok_or("no ship material")?;
   let collision_mesh = meshes.get(&collision_primative.mesh).clone().ok_or("Couldn't get collision mesh")?;
   player_resources.collider = Some(Collider::convex_hull_from_mesh(collision_mesh).ok_or("couldn't create collider from mesh")?);
+  player_resources.shield_mesh = meshes.add(Sphere::default().mesh().uv(16, 8));
   Ok(())
 }
 
@@ -99,6 +101,7 @@ fn spawn_player(
   query: Query<&Transform, With<PlayerStart>>,
   mut commands: Commands,
   player_resources: Res<PlayerResources>,
+  shader_materials: Res<ShaderMaterials>,
  ){
   for start_transform in query.iter() {
     commands.spawn((
@@ -155,7 +158,13 @@ fn spawn_player(
             MeshMaterial3d(player_resources.flame_material.clone()),
             NotShadowCaster,
           ),
-          
+          (
+            Mesh3d(player_resources.shield_mesh.clone()),
+            MeshMaterial3d(shader_materials.shield.clone()),
+            Transform::from_scale(Vec3::splat(6.))
+
+
+          )
           ],
       
       ));

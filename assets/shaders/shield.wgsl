@@ -30,7 +30,7 @@ fn noise(p: vec2<f32> ) -> f32
   let b:vec2<f32> = a - o + K2;
 	let c:vec2<f32> = a - 1.0 + 2.0*K2;
   let h:vec3<f32> = max( 0.5-vec3<f32>(dot(a,a), dot(b,b), dot(c,c)), vec3<f32>(0.0) );
-	let n:vec3<f32> = h*h*h*h*vec3( dot(a,hash(i+0.0)), dot(b,hash(i+o)), dot(c,hash(i+1.0)));
+	let n:vec3<f32> = h*h*h*h*h*vec3( dot(a,hash(i+0.0)), dot(b,hash(i+o)), dot(c,hash(i+1.0)));
   return dot( n, vec3(70.0) );
 }
 
@@ -41,8 +41,8 @@ fn fragment(
 ) -> @location(0) vec4<f32> {
 
   let p = mesh.uv;
-  let green = noise(p*12. + vec2(1.2,2.33) * globals.time);
-  let blue = noise(p*9.6 + vec2(-1.4,-1.12) * globals.time);
+  let green = noise(p*12. + vec2(1.2,2.33) * -globals.time);
+  let blue = noise(p*9.6 + vec2(-1.4,-1.12) * -globals.time);
 
 return vec4(0., green, blue, (green + blue * 0.5));
 

@@ -6,6 +6,7 @@ impl Plugin for ShaderPlugin{
       app
         .init_resource::<ShaderMaterials>()
         .add_plugins(MaterialPlugin::<RaysShaderMaterial>::default())
+        .add_plugins(MaterialPlugin::<ShieldShaderMaterial>::default())
         .add_systems(PreStartup, init_materials);
 
     }
@@ -17,12 +18,16 @@ const SHIELD_SHADER_PATH: &str = "shaders/shield.wgsl";
 fn init_materials(
   mut commands:Commands,
   mut rays_materials: ResMut<Assets<RaysShaderMaterial>>,
+  mut shield_materials: ResMut<Assets<ShieldShaderMaterial>>,
 ){
 
   let shader_materials = ShaderMaterials{
     rays: rays_materials.add(RaysShaderMaterial{
       alpha_mode: AlphaMode::Premultiplied,
     }),
+    shield: shield_materials.add(ShieldShaderMaterial{ 
+      alpha_mode: AlphaMode::Premultiplied,
+    })
   };
   commands.insert_resource::<ShaderMaterials>(shader_materials);
 }
@@ -30,7 +35,8 @@ fn init_materials(
 
 #[derive(Resource, Default)]
 pub struct ShaderMaterials{
-  pub rays:Handle<RaysShaderMaterial>
+  pub rays:Handle<RaysShaderMaterial>,
+  pub shield:Handle<ShieldShaderMaterial>,
 }
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -59,12 +65,11 @@ impl Material for RaysShaderMaterial{
 
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct ShieldMaterial {
+pub struct ShieldShaderMaterial {
   alpha_mode: AlphaMode,
 }
 
-
-impl Material for ShieldMaterial {
+impl Material for ShieldShaderMaterial {
   fn fragment_shader() -> ShaderRef {
     SHIELD_SHADER_PATH.into()
   }
