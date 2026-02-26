@@ -37,6 +37,12 @@ struct Thrust;
 #[action_output(bool)]
 struct Shoot;
 
+
+#[derive(InputAction)]
+#[action_output(bool)]
+struct Shield;
+
+
 #[derive(Component)]
 pub struct Player;
 
@@ -125,6 +131,11 @@ fn spawn_player(
           HoldAndRelease::new(0.),
           bindings![KeyCode::ArrowUp, KeyCode::KeyW, GamepadButton::DPadUp],
         ),
+        (
+          Action::<Shield>::new(),
+          HoldAndRelease::new(0.),
+          bindings![KeyCode::KeyZ],
+        )
       ]),
       children![(
             PointLight {
@@ -161,6 +172,12 @@ fn player_yaw(
   forces.apply_torque(Vec3::new(0.,0.,-yaw.value));
 }
 
+
+
+
+
+
+
 fn player_thrust(
   thrust:On<Ongoing<Thrust>>,
   mut forces_query:Query<Forces>,
@@ -183,8 +200,6 @@ fn player_thrust_release(
   *visible = Visibility::Hidden;     
 
 }
-
-
 
 fn animate_flame(
   flame: Single<(&mut Transform,  &mut PlayerFlame, &Visibility)>,

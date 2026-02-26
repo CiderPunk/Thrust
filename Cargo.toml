@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 
+[features]
+watcher = [
+  "bevy/file_watcher",
+  "bevy/embedded_watcher",
+]
+
+
 [dependencies]
 bevy = "0.18.0"
 bevy_skein = "0.5.0-rc.1"

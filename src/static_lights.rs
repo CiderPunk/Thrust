@@ -39,11 +39,11 @@ fn init_static_lights(
  */
 
 fn init_ray_material(
-  query:Query<Entity, With<LightRaysMaterial>>,
+  query:Query<(Entity, &Name), With<LightRaysMaterial>>,
   materials:Res<ShaderMaterials>,
   mut commands: Commands,
 ){
-  for entity in query{
+  for (entity, name) in query{
     commands
       .entity(entity)
       .remove::<MeshMaterial3d<StandardMaterial>>()
@@ -51,7 +51,7 @@ fn init_ray_material(
         NotShadowCaster,
         MeshMaterial3d(materials.rays.clone())
       ));
-    info!("ray material added");
+    info!("ray material added {}",name);
   }
 }
 
