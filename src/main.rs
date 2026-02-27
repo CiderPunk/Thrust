@@ -9,6 +9,7 @@ mod static_lights;
 mod shaders;
 mod cargo;
 mod macros;
+mod physics;
 
 use bevy::{asset::AssetMetaCheck, color::palettes::css::WHITE, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;

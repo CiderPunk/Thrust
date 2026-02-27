@@ -1,7 +1,7 @@
-use avian3d::prelude::{AngularDamping, Collider, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, TransformInterpolation};
-use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, render::view::visibility, time::Stopwatch};
+use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
+use bevy::{color::palettes::css::WHITE, ecs::schedule::graph::Direction, gltf::GltfMesh, light::NotShadowCaster, prelude::*, render::view::visibility, time::Stopwatch};
 use bevy_enhanced_input::prelude::{Release, *};
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative, shaders::ShaderMaterials};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, physics::GameLayer, shaders::ShaderMaterials};
 
 
 const PLAYER_THRUST: f32 = 200.;
@@ -17,9 +17,12 @@ impl Plugin for PlayerPlugin {
       .add_systems(OnEnter(AssetLoadState::Loaded), init_player_reosurces)
       .add_systems(OnEnter(GameState::Initialize), spawn_player)
       .add_systems(Update, animate_flame)
+      .add_systems(Update, ( cargo_scan ).in_set(GameSchedule::EntityUpdates))
       .add_observer(player_yaw)
       .add_observer(player_thrust)
       .add_observer(player_thrust_release)
+      .add_observer(player_shield_activate)
+      .add_observer(player_shield_release)
       .add_input_context::<Player>();
   }
 }
@@ -40,11 +43,17 @@ struct Shoot;
 
 #[derive(InputAction)]
 #[action_output(bool)]
-struct Shield;
+struct ActivateShield;
 
 
 #[derive(Component)]
-pub struct Player;
+pub struct Player{
+  shield_active:bool,
+  cargo_scan_timer:Timer,
+}
+
+#[derive(Component)]
+struct Shield;
 
 
 #[derive(Component, Default)]
@@ -105,7 +114,10 @@ fn spawn_player(
  ){
   for start_transform in query.iter() {
     commands.spawn((
-      Player,
+      Player{ 
+        shield_active: false, 
+        cargo_scan_timer: Timer::from_seconds(0.2, TimerMode::Repeating),
+      },
       Mesh3d(player_resources.ship_mesh.clone()),
       MeshMaterial3d(player_resources.ship_material.clone()),
       start_transform.clone(),
@@ -114,6 +126,7 @@ fn spawn_player(
       AngularDamping(20.0),
       TransformInterpolation,
       LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
+      CollisionLayers::new([GameLayer::Player, GameLayer::Default], [GameLayer::Default]),
       player_resources.collider.clone().unwrap(),
       //NotShadowCaster,
       actions!(Player[
@@ -131,46 +144,44 @@ fn spawn_player(
         ),
         (
           Action::<Thrust>::new(),
-          HoldAndRelease::new(0.),
           bindings![KeyCode::ArrowUp, KeyCode::KeyW, GamepadButton::DPadUp],
         ),
         (
-          Action::<Shield>::new(),
-          HoldAndRelease::new(0.),
-          bindings![KeyCode::KeyZ],
+          Action::<ActivateShield>::new(),
+          bindings![KeyCode::KeyF, KeyCode::ControlRight, KeyCode::ControlLeft],
         )
       ]),
-      children![(
-            PointLight {
-              intensity: 3_000_000.0,
-              range: 50.,
-              color: WHITE.into(),
-              shadows_enabled: true,
-              shadow_map_near_z: 2.0,
-              ..default()
-            },
-            Transform::from_xyz(0.,0.,0.),
-            PlayerLight,
-          ),
-          (  
-            PlayerFlame{ ignite_time:Stopwatch::default() } ,
-            Mesh3d(player_resources.flame_mesh.clone()),
-            MeshMaterial3d(player_resources.flame_material.clone()),
-            NotShadowCaster,
-          ),
-          (
-            Mesh3d(player_resources.shield_mesh.clone()),
-            MeshMaterial3d(shader_materials.shield.clone()),
-            Transform::from_scale(Vec3::splat(6.))
-
-
-          )
-          ],
-      
-      ));
-    }
- }
-
+      children![
+        (
+          PointLight {
+            intensity: 3_000_000.0,
+            range: 50.,
+            color: WHITE.into(),
+            shadows_enabled: true,
+            shadow_map_near_z: 2.0,
+            ..default()
+          },
+          Transform::from_xyz(0.,0.,0.),
+          PlayerLight,
+        ),
+        (  
+          PlayerFlame{ ignite_time:Stopwatch::default() } ,
+          Mesh3d(player_resources.flame_mesh.clone()),
+          MeshMaterial3d(player_resources.flame_material.clone()),
+          NotShadowCaster,
+        ),
+        (
+          Shield,
+          Visibility::Hidden,
+          Mesh3d(player_resources.shield_mesh.clone()),
+          MeshMaterial3d(shader_materials.shield.clone()),
+          Transform::from_scale(Vec3::splat(6.))
+        )
+      ],
+    
+    ));
+  }
+}
 
 fn player_yaw(
   yaw:On<Fire<Yaw>>,
@@ -181,14 +192,8 @@ fn player_yaw(
   forces.apply_torque(Vec3::new(0.,0.,-yaw.value));
 }
 
-
-
-
-
-
-
 fn player_thrust(
-  thrust:On<Ongoing<Thrust>>,
+  thrust:On<Fire<Thrust>>,
   mut forces_query:Query<Forces>,
   flame_visiblity:Single<&mut Visibility, With<PlayerFlame>>,
 ){
@@ -201,13 +206,50 @@ fn player_thrust(
 }
 
 fn player_thrust_release(
-  _:On<Fire<Thrust>>,
+  _:On<Complete<Thrust>>,
   flame_visiblity:Single<(&mut Visibility, &mut PlayerFlame)>,
 ){
   let (mut visible, mut flame) = flame_visiblity.into_inner();
   flame.ignite_time.reset();
   *visible = Visibility::Hidden;     
+}
 
+fn player_shield_activate(
+  shield:On<Start<ActivateShield>>,
+  player_query:Query<(&mut Player, &Children)>,
+  shield_query:Query<&mut Visibility, With<Shield>>,
+){
+  toggle_shield(shield.context, true, player_query, shield_query);
+}
+
+fn player_shield_release(
+  shield:On<Complete<ActivateShield>>,
+  player_query:Query<(&mut Player, &Children)>,
+  shield_query:Query<&mut Visibility, With<Shield>>,
+){
+  toggle_shield(shield.context, false, player_query, shield_query);
+}
+
+
+fn toggle_shield(
+  entity:Entity,
+  shield_state:bool,
+  mut player_query:Query<(&mut Player, &Children)>,
+  mut shield_query:Query<&mut Visibility, With<Shield>>,
+){
+   let Ok((mut player, children)) = player_query.get_mut(entity) else{
+    return;
+  };
+  player.shield_active = shield_state;
+  if shield_state{
+    player.cargo_scan_timer.reset();
+  }
+
+  for child in children{
+    if let Ok(mut visible) = shield_query.get_mut(*child){
+      *visible = if shield_state { Visibility::Visible } else { Visibility::Hidden };
+    }
+  }
 }
 
 fn animate_flame(
@@ -227,3 +269,41 @@ fn animate_flame(
     light.intensity = 1_000_000.0;
   }
 }
+
+fn cargo_scan(
+  query:Query<(&mut Player, &GlobalTransform, Entity)>,
+  transform_query:Query<&GlobalTransform>,
+  time:Res<Time>,
+  spatial_query:SpatialQuery,
+){
+  for (mut player, transform, player_entity) in query{
+    if player.shield_active{
+      player.cargo_scan_timer.tick(time.delta());
+      if player.cargo_scan_timer.is_finished(){
+        let player_translation = transform.translation();
+        //let mut cargo = vec![];
+        //do scan!
+        spatial_query.shape_intersections_callback(&Collider::sphere(20.), transform.translation(), Quat::default(), &SpatialQueryFilter::from_mask(GameLayer::Cargo), |entity| { 
+          if let Ok(target_transform) = transform_query.get(entity) {
+            let direction_to_target = Dir3::new_unchecked((target_transform.translation()- player_translation).normalize());
+            if let Some(hit) = spatial_query.cast_ray(player_translation, direction_to_target, 20., false, &SpatialQueryFilter::from_excluded_entities([player_entity])){
+              if hit.entity == entity{
+
+                info!("Cargo scan {} distance {}",entity, hit.distance);
+              }
+            };
+
+          
+          };
+
+          true
+        });
+
+
+
+      }
+    }
+  }
+}
+
+
