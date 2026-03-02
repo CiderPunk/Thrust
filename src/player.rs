@@ -1,4 +1,6 @@
-use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
+use core::f32;
+
+use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
 use bevy::{color::palettes::css::WHITE, ecs::schedule::graph::Direction, gltf::GltfMesh, light::NotShadowCaster, prelude::*, render::view::visibility, time::Stopwatch};
 use bevy_enhanced_input::prelude::{Release, *};
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, physics::GameLayer, shaders::ShaderMaterials};
@@ -17,7 +19,8 @@ impl Plugin for PlayerPlugin {
       .add_systems(OnEnter(AssetLoadState::Loaded), init_player_reosurces)
       .add_systems(OnEnter(GameState::Initialize), spawn_player)
       .add_systems(Update, animate_flame)
-      .add_systems(Update, ( cargo_scan ).in_set(GameSchedule::EntityUpdates))
+      .add_systems(Update, ( cargo_scan, tether_update ).in_set(GameSchedule::EntityUpdates))
+      .add_observer(on_remove_tether)
       .add_observer(player_yaw)
       .add_observer(player_thrust)
       .add_observer(player_thrust_release)
@@ -69,6 +72,16 @@ pub struct PlayerLight;
 #[reflect(Component, Default)]
 #[type_path = "api"]
 struct PlayerStart;
+
+
+
+
+#[derive(Component, Debug)]
+struct Tether{
+  target:Entity,
+  joint:Option<Entity>,
+}
+
 
 
 #[derive(Resource, Default)]
@@ -270,37 +283,112 @@ fn animate_flame(
   }
 }
 
+
+const TETHER_DISTANCE: f32 = 14.;
+const TETHER_START_DISTANCE: f32 = 10.;
+const TETHER_MAX_DISTANCE: f32 = 20.;
+const TETHER_MIN_DISTANCE: f32 = 2.;
+
+
+fn on_remove_tether(
+  trigger:On<Remove, Tether>,
+  query:Query<&Tether>,
+  mut commands:Commands,
+){
+  if let Ok(tether) = query.get(trigger.entity){
+    if let Some(join) = tether.joint{
+      commands.entity(join).despawn();
+    }
+  }
+}
+
+
+
+fn tether_update(
+  query:Query<(&Player, &mut Tether, &GlobalTransform, Entity)>,
+  target_query:Query<&GlobalTransform>,
+  spatial_query:SpatialQuery,
+  mut commands:Commands,
+){
+  for (player, mut tether, player_transform, player_entity) in query{
+    let Ok(target_transform) = target_query.get(tether.target) else{ 
+      info!("Tether target lost");
+      commands.entity(player_entity).remove::<Tether>();
+      continue;
+    };
+
+    //player cancelled tether
+    if !player.shield_active &&  tether.joint.is_none(){
+      info!("Tether cancelled");
+      commands.entity(player_entity).remove::<Tether>();
+      continue;
+    }
+
+    let player_translation = player_transform.translation();
+    //check target visiblity
+    let delta = target_transform.translation() - player_translation;
+    let direction = Dir3::new_unchecked(delta.normalize());
+    if  let Some(hit) = spatial_query.cast_ray(player_translation, direction, TETHER_MAX_DISTANCE, false,  &SpatialQueryFilter::from_excluded_entities([player_entity])){
+      if hit.entity == tether.target{
+        //check if we;'ve moved away further than the tether distanbce and can start actual lifting
+        if (tether.joint.is_none() && hit.distance > TETHER_START_DISTANCE){
+          //create physics constraint
+          tether.joint = Some(commands.spawn(DistanceJoint::new(player_entity, tether.target).with_min_distance(TETHER_MIN_DISTANCE).with_max_distance(TETHER_DISTANCE)).id());
+        }
+        continue;
+      }
+
+    }
+    info!("Tether obstruction");
+    commands.entity(player_entity).remove::<Tether>();
+    continue;
+  }
+}
+
+
+
 fn cargo_scan(
-  query:Query<(&mut Player, &GlobalTransform, Entity)>,
+  query:Query<(&mut Player, &GlobalTransform, Entity), Without<Tether>>,
   transform_query:Query<&GlobalTransform>,
   time:Res<Time>,
   spatial_query:SpatialQuery,
+  mut commands:Commands,
 ){
   for (mut player, transform, player_entity) in query{
     if player.shield_active{
       player.cargo_scan_timer.tick(time.delta());
       if player.cargo_scan_timer.is_finished(){
+
         let player_translation = transform.translation();
-        //let mut cargo = vec![];
+        let mut nearest_target:Option<Entity> = None;
+        let mut nearest_distance_squared = f32::MAX;
         //do scan!
-        spatial_query.shape_intersections_callback(&Collider::sphere(20.), transform.translation(), Quat::default(), &SpatialQueryFilter::from_mask(GameLayer::Cargo), |entity| { 
+
+        spatial_query.shape_intersections_callback(&Collider::sphere(TETHER_DISTANCE), transform.translation(), Quat::default(), &SpatialQueryFilter::from_mask(GameLayer::Cargo), |entity| { 
+
           if let Ok(target_transform) = transform_query.get(entity) {
-            let direction_to_target = Dir3::new_unchecked((target_transform.translation()- player_translation).normalize());
-            if let Some(hit) = spatial_query.cast_ray(player_translation, direction_to_target, 20., false, &SpatialQueryFilter::from_excluded_entities([player_entity])){
-              if hit.entity == entity{
-
-                info!("Cargo scan {} distance {}",entity, hit.distance);
-              }
-            };
-
-          
-          };
-
+            let delta = target_transform.translation()- player_translation;
+            let distance_squared = delta.length_squared();
+             //check if we're nearest
+            if distance_squared < nearest_distance_squared{
+              let direction_to_target = Dir3::new_unchecked(delta / distance_squared.sqrt());
+              //test there's a direct line of sight to the target
+              if let Some(hit) = spatial_query.cast_ray(player_translation, direction_to_target, TETHER_DISTANCE, false, &SpatialQueryFilter::from_excluded_entities([player_entity])){
+                if hit.entity == entity{
+                  nearest_target = Some(entity);
+                  nearest_distance_squared = distance_squared;
+                }
+              };
+            }
+          }; 
           true
         });
 
-
-
+        if nearest_target.is_some() {
+          //target aquired
+          info!("Tether target: {}  distance: {}", nearest_target.unwrap(), nearest_distance_squared);
+          commands.entity(player_entity).insert(Tether{ target: nearest_target.unwrap(), joint:None, });
+        }
       }
     }
   }

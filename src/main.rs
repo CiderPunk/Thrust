@@ -44,7 +44,7 @@ fn main() {
       SkeinPlugin::default(), 
       PhysicsPlugins::default(),
       EnhancedInputPlugin,
-      //PhysicsDebugPlugin,
+      PhysicsDebugPlugin,
     ))
     .add_plugins((
       GameSchedulePlugin,
