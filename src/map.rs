@@ -35,18 +35,25 @@ fn spawn_map(
 #[derive(Component, Default, Reflect, Debug)]
 #[reflect(Component, Default)]
 #[type_path = "api"]
-struct CollisionHull;
+struct CollisionHull{
+  leave_mesh:bool,
+}
+
+
 
 fn init_collision_hulls(
-  mut query: Query<(&mut Visibility, Entity), (With<CollisionHull>, With<Mesh3d>)>, 
+  mut query: Query<(&mut Visibility, Entity, &CollisionHull), With<Mesh3d>>, 
   mut commands: Commands,
 ) {
-  for (mut visiblity,hull_entity) in query.iter_mut() {
+  for (mut visiblity,hull_entity, collision_hull) in query.iter_mut() {
     info!("Collision hull found: {:?}", hull_entity);
     commands.entity(hull_entity)
       .insert(ColliderConstructor::TrimeshFromMesh)
       .insert(RigidBody::Static);
-    *visiblity = Visibility::Hidden;
+
+    if !collision_hull.leave_mesh{
+      *visiblity = Visibility::Hidden;
+    }
   }
 
 }
