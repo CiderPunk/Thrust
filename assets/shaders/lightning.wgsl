@@ -1,14 +1,9 @@
 //ported from https://www.shadertoy.com/view/Mds3W7
 
-#import bevy_sprite::mesh2d_view_bindings::globals
-#import bevy_sprite::mesh2d_vertex_output::VertexOutput
-#import bevy_render::view::View
-#import shadplay::shader_utils::common::{sd_sphere, sdBox, rotate2D, calcLookAtMatrix}
-
-@group(0) @binding(0) var<uniform> view: View;
-
-const STRENGTH: f32 = 0.4;  // Controls the strength of the waves
-const SPEED: f32 = 0.33333; // Controls the speed at which the waves run
+#import bevy_pbr::{
+    mesh_view_bindings::globals,
+    forward_io::VertexOutput,
+}
 
 
 
@@ -63,5 +58,5 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
   let c2 = 1.0 - mix(0.0,1.0,diff2*20.0);
   
   let c = max(c1,c2);
-  return vec4(c*0.6,0.2*c2,c,1.0); 
+  return vec4(c2*0.2,0.6*c,c,c); 
 }

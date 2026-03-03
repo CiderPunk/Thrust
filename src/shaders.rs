@@ -7,6 +7,7 @@ impl Plugin for ShaderPlugin{
         .init_resource::<ShaderMaterials>()
         .add_plugins(MaterialPlugin::<RaysShaderMaterial>::default())
         .add_plugins(MaterialPlugin::<ShieldShaderMaterial>::default())
+        .add_plugins(MaterialPlugin::<LightningShaderMaterial>::default())
         .add_systems(PreStartup, init_materials);
 
     }
@@ -14,11 +15,13 @@ impl Plugin for ShaderPlugin{
 
 const RAYS_SHADER_PATH: &str = "shaders/spotlight_ray_material.wgsl";
 const SHIELD_SHADER_PATH: &str = "shaders/shield.wgsl";
+const LIGHTNING_SHADER_PATH: &str = "shaders/lightning.wgsl";
 
 fn init_materials(
   mut commands:Commands,
   mut rays_materials: ResMut<Assets<RaysShaderMaterial>>,
   mut shield_materials: ResMut<Assets<ShieldShaderMaterial>>,
+  mut lightning_materials: ResMut<Assets<LightningShaderMaterial>>,
 ){
 
   let shader_materials = ShaderMaterials{
@@ -27,7 +30,11 @@ fn init_materials(
     }),
     shield: shield_materials.add(ShieldShaderMaterial{ 
       alpha_mode: AlphaMode::Premultiplied,
-    })
+    }),
+    tether: lightning_materials.add(LightningShaderMaterial{
+      alpha_mode: AlphaMode::Premultiplied,
+    }),
+
   };
   commands.insert_resource::<ShaderMaterials>(shader_materials);
 }
@@ -37,6 +44,7 @@ fn init_materials(
 pub struct ShaderMaterials{
   pub rays:Handle<RaysShaderMaterial>,
   pub shield:Handle<ShieldShaderMaterial>,
+  pub tether:Handle<LightningShaderMaterial>,
 }
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -72,6 +80,22 @@ pub struct ShieldShaderMaterial {
 impl Material for ShieldShaderMaterial {
   fn fragment_shader() -> ShaderRef {
     SHIELD_SHADER_PATH.into()
+  }
+  fn alpha_mode(&self) -> AlphaMode {
+    self.alpha_mode
+  }
+}
+
+
+
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct LightningShaderMaterial {
+  alpha_mode: AlphaMode,
+}
+
+impl Material for LightningShaderMaterial {
+  fn fragment_shader() -> ShaderRef {
+    LIGHTNING_SHADER_PATH.into()
   }
   fn alpha_mode(&self) -> AlphaMode {
     self.alpha_mode

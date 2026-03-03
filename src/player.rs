@@ -6,7 +6,13 @@ use bevy_enhanced_input::prelude::{Release, *};
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, physics::GameLayer, shaders::ShaderMaterials};
 
 
-const PLAYER_THRUST: f32 = 200.;
+const PLAYER_THRUST: f32 = 250.;
+
+const TETHER_DISTANCE: f32 = 14.;
+const TETHER_START_DISTANCE: f32 = 10.;
+const TETHER_MAX_DISTANCE: f32 = 20.;
+const TETHER_MIN_DISTANCE: f32 = 8.;
+
 
 
 pub struct PlayerPlugin;
@@ -21,6 +27,7 @@ impl Plugin for PlayerPlugin {
       .add_systems(Update, animate_flame)
       .add_systems(Update, ( cargo_scan, tether_update ).in_set(GameSchedule::EntityUpdates))
       .add_observer(on_remove_tether)
+      .add_observer(on_add_tether)
       .add_observer(player_yaw)
       .add_observer(player_thrust)
       .add_observer(player_thrust_release)
@@ -80,6 +87,7 @@ struct PlayerStart;
 struct Tether{
   target:Entity,
   joint:Option<Entity>,
+  effect: Option<Entity>,
 }
 
 
@@ -92,6 +100,7 @@ struct PlayerResources{
   flame_mesh: Handle<Mesh>,
   flame_material: Handle<StandardMaterial>,
   shield_mesh: Handle<Mesh>,
+  tether_mesh: Handle<Mesh>,
 }
 
 
@@ -116,6 +125,7 @@ fn init_player_reosurces(
   let collision_mesh = meshes.get(&collision_primative.mesh).clone().ok_or("Couldn't get collision mesh")?;
   player_resources.collider = Some(Collider::convex_hull_from_mesh(collision_mesh).ok_or("couldn't create collider from mesh")?);
   player_resources.shield_mesh = meshes.add(Sphere::default().mesh().uv(16, 8));
+  player_resources.tether_mesh = meshes.add(Plane3d::new(Vec3::Z, Vec2::new(1., 1.)));
   Ok(())
 }
 
@@ -276,19 +286,12 @@ fn animate_flame(
     flame.ignite_time.tick(time.delta());
     let  scale = 0.5 + ((flame.ignite_time.elapsed_secs() * 10.).sin().abs() *0.8) - flame.ignite_time.elapsed_secs().min(0.2); 
     transform.scale = Vec3::splat(scale);
-    light.intensity =1_000_000.0  + (2_000_000. * scale);
+    light.intensity = 1_000_000.0  + (2_000_000. * scale);
   }
   else{
     light.intensity = 1_000_000.0;
   }
 }
-
-
-const TETHER_DISTANCE: f32 = 14.;
-const TETHER_START_DISTANCE: f32 = 10.;
-const TETHER_MAX_DISTANCE: f32 = 20.;
-const TETHER_MIN_DISTANCE: f32 = 2.;
-
 
 fn on_remove_tether(
   trigger:On<Remove, Tether>,
@@ -299,14 +302,33 @@ fn on_remove_tether(
     if let Some(join) = tether.joint{
       commands.entity(join).despawn();
     }
+    if let Some(tether_effect) = tether.effect{
+      commands.entity(tether_effect).despawn();
+    }
   }
 }
 
-
+fn on_add_tether(
+  trigger:On<Add, Tether>,
+  mut query:Query<&mut Tether>,
+  mut commands:Commands,
+  player_resources: Res<PlayerResources>,
+  shader_materials: Res<ShaderMaterials>,
+){
+  if let Ok(mut tether) = query.get_mut(trigger.entity){
+    let tether_effect = commands.spawn((
+      Mesh3d(player_resources.tether_mesh.clone()),
+      MeshMaterial3d(shader_materials.tether.clone()),
+      Transform::from_translation(Vec3::new(-1000., 0., 0.)),
+    )).id();
+    tether.effect = Some(tether_effect);
+  }
+}
 
 fn tether_update(
   query:Query<(&Player, &mut Tether, &GlobalTransform, Entity)>,
   target_query:Query<&GlobalTransform>,
+  mut effect_query:Query<&mut Transform>,
   spatial_query:SpatialQuery,
   mut commands:Commands,
 ){
@@ -335,9 +357,16 @@ fn tether_update(
           //create physics constraint
           tether.joint = Some(commands.spawn(DistanceJoint::new(player_entity, tether.target).with_min_distance(TETHER_MIN_DISTANCE).with_max_distance(TETHER_DISTANCE)).id());
         }
+
+        //reposition the effect!
+        if tether.effect.is_some() && let Ok(mut effect_transform) = effect_query.get_mut(tether.effect.unwrap()){
+          effect_transform.translation = player_translation + (delta * 0.5);
+          effect_transform.scale = Vec3::new( hit.distance * 0.5,2.,1.);
+          effect_transform.rotation = Quat::from_axis_angle(Vec3::Z, delta.xy().to_angle());
+        };
+
         continue;
       }
-
     }
     info!("Tether obstruction");
     commands.entity(player_entity).remove::<Tether>();
@@ -387,7 +416,11 @@ fn cargo_scan(
         if nearest_target.is_some() {
           //target aquired
           info!("Tether target: {}  distance: {}", nearest_target.unwrap(), nearest_distance_squared);
-          commands.entity(player_entity).insert(Tether{ target: nearest_target.unwrap(), joint:None, });
+          commands.entity(player_entity).insert(Tether{ 
+            target: nearest_target.unwrap(), 
+            joint:None, 
+            effect:None 
+          });
         }
       }
     }
