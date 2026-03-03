@@ -6,7 +6,8 @@ use bevy_enhanced_input::prelude::{Release, *};
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, physics::GameLayer, shaders::ShaderMaterials};
 
 
-const PLAYER_THRUST: f32 = 250.;
+//const PLAYER_THRUST: f32 = 250.;
+const PLAYER_THRUST: f32 = 25000.;
 
 const TETHER_DISTANCE: f32 = 14.;
 const TETHER_START_DISTANCE: f32 = 10.;
@@ -24,12 +25,11 @@ impl Plugin for PlayerPlugin {
       })
       .add_systems(OnEnter(AssetLoadState::Loaded), init_player_reosurces)
       .add_systems(OnEnter(GameState::Initialize), spawn_player)
-      .add_systems(Update, animate_flame)
-      .add_systems(Update, ( cargo_scan, tether_update ).in_set(GameSchedule::EntityUpdates))
+      .add_systems(Update, (animate_flame, player_thrust, cargo_scan, tether_update ).in_set(GameSchedule::EntityUpdates))
       .add_observer(on_remove_tether)
       .add_observer(on_add_tether)
       .add_observer(player_yaw)
-      .add_observer(player_thrust)
+      .add_observer(player_thrust_active)
       .add_observer(player_thrust_release)
       .add_observer(player_shield_activate)
       .add_observer(player_shield_release)
@@ -60,6 +60,7 @@ struct ActivateShield;
 pub struct Player{
   shield_active:bool,
   cargo_scan_timer:Timer,
+  thrust:bool,
 }
 
 #[derive(Component)]
@@ -140,6 +141,7 @@ fn spawn_player(
       Player{ 
         shield_active: false, 
         cargo_scan_timer: Timer::from_seconds(0.2, TimerMode::Repeating),
+        thrust:false,
       },
       Mesh3d(player_resources.ship_mesh.clone()),
       MeshMaterial3d(player_resources.ship_material.clone()),
@@ -171,7 +173,11 @@ fn spawn_player(
         ),
         (
           Action::<ActivateShield>::new(),
-          bindings![KeyCode::KeyF, KeyCode::ControlRight, KeyCode::ControlLeft],
+          bindings![KeyCode::KeyF, KeyCode::KeyE, KeyCode::KeyQ],
+        ),
+        (
+          Action::<Shoot>::new(),
+          bindings![KeyCode::Space],
         )
       ]),
       children![
@@ -206,6 +212,20 @@ fn spawn_player(
   }
 }
 
+
+fn player_thrust(
+  mut query:Query<(&Player, Forces)>,
+  time:Res<Time>,
+){
+  for (player, mut forces) in query.iter_mut(){
+    if player.thrust{
+      forces.apply_local_force(Vec3::new(0.,PLAYER_THRUST * time.delta_secs(), 0.));
+    }
+
+  }
+
+}
+
 fn player_yaw(
   yaw:On<Fire<Yaw>>,
   mut forces_query:Query<Forces>,
@@ -215,23 +235,30 @@ fn player_yaw(
   forces.apply_torque(Vec3::new(0.,0.,-yaw.value));
 }
 
-fn player_thrust(
+fn player_thrust_active(
   thrust:On<Fire<Thrust>>,
-  mut forces_query:Query<Forces>,
+  mut player_query:Query<&mut Player>,
   flame_visiblity:Single<&mut Visibility, With<PlayerFlame>>,
 ){
   let mut flame = flame_visiblity.into_inner();
-  let mut forces = forces_query.get_mut(thrust.context).unwrap();
+  let mut player = player_query.get_mut(thrust.context).unwrap();
+  //let mut forces = forces_query.get_mut(thrust.context).unwrap();
   if thrust.value{
-    forces.apply_local_force(Vec3::new(0.,PLAYER_THRUST, 0.));
+    player.thrust = true;
+    //forces.apply_local_force(Vec3::new(0.,PLAYER_THRUST, 0.));
     *flame = Visibility::Visible;     
   }
 }
 
 fn player_thrust_release(
-  _:On<Complete<Thrust>>,
+  thrust:On<Complete<Thrust>>,
+  mut player_query:Query<&mut Player>,
   flame_visiblity:Single<(&mut Visibility, &mut PlayerFlame)>,
-){
+){ 
+  let mut player = player_query.get_mut(thrust.context).unwrap();
+
+  player.thrust = false;
+
   let (mut visible, mut flame) = flame_visiblity.into_inner();
   flame.ignite_time.reset();
   *visible = Visibility::Hidden;     
