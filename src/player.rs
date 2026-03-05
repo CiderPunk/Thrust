@@ -3,7 +3,7 @@ use core::f32;
 use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, time::Stopwatch};
 use bevy_enhanced_input::prelude::*;
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, physics::GameLayer, shaders::ShaderMaterials};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, physics::GameLayer, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};
 
 
 //const PLAYER_THRUST: f32 = 250.;
@@ -13,7 +13,7 @@ const PLAYER_YAW_SCALE: f32 = 80000.;
 const TETHER_DISTANCE: f32 = 14.;
 const TETHER_START_DISTANCE: f32 = 10.;
 const TETHER_MAX_DISTANCE: f32 = 20.;
-const TETHER_MIN_DISTANCE: f32 = 8.;
+const TETHER_MIN_DISTANCE: f32 = 4.;
 
 
 
@@ -34,6 +34,8 @@ impl Plugin for PlayerPlugin {
       .add_observer(player_thrust_release)
       .add_observer(player_shield_activate)
       .add_observer(player_shield_release)
+      .add_observer(player_shoot_active)
+      .add_observer(player_shoot_release)
       .add_input_context::<Player>();
   }
 }
@@ -57,7 +59,7 @@ struct Shoot;
 struct ActivateShield;
 
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Player{
   shield_active:bool,
   cargo_scan_timer:Timer,
@@ -114,7 +116,6 @@ fn init_player_reosurces(
   //materials: Res<Assets<StandardMaterial>>,
 ) -> Result<()> {
   let models = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
-
   let collision_primative = get_gltf_primative!(gltf_meshes, models,"ship-collision" );
   let display_primative = get_gltf_primative!(gltf_meshes, models, "ship-display" );
   let flame_primative = get_gltf_primative!(gltf_meshes, models, "ship-flame" );
@@ -184,6 +185,11 @@ fn spawn_player(
       ]),
       children![
         (
+          Weapon::default(),
+          ProjectileGun::default(),
+          Transform::from_xyz(0.,0.,0.),
+        ),
+        (
           PointLight {
             intensity: 3_000_000.0,
             range: 50.,
@@ -209,7 +215,6 @@ fn spawn_player(
           Transform::from_scale(Vec3::splat(6.))
         )
       ],
-    
     ));
   }
 }
@@ -260,7 +265,6 @@ fn player_shield_release(
   toggle_shield(shield.context, false, player_query, shield_query);
 }
 
-
 fn toggle_shield(
   entity:Entity,
   shield_state:bool,
@@ -279,6 +283,34 @@ fn toggle_shield(
     if let Ok(mut visible) = shield_query.get_mut(*child){
       *visible = if shield_state { Visibility::Visible } else { Visibility::Hidden };
     }
+  }
+}
+
+fn player_shoot_active(
+  shoot:On<Start<Shoot>>,
+  child_query:Query<&Children>,
+  mut weapon_query:Query<&mut Weapon>,
+){
+
+  info!("Shoot start");
+  for child in child_query.iter_descendants(shoot.context){
+    if let Ok(mut weapon) = weapon_query.get_mut(child){
+        info!("weapon active");
+      weapon.trigger_active= true;
+    };
+  }
+}
+
+fn player_shoot_release(
+  shoot:On<Complete<Shoot>>,
+  child_query:Query<&Children>,
+  mut weapon_query:Query<&mut Weapon>,
+){
+  info!("Shoot end");
+  for child in child_query.iter_descendants(shoot.context){
+    if let Ok(mut weapon) = weapon_query.get_mut(child){
+      weapon.trigger_active= false;
+    };
   }
 }
 
