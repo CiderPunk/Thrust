@@ -1,0 +1,116 @@
+{
+  "meta": {
+    "version": "0.6.7"
+  },
+  "savePath": "C:\\Users\\matt\\Documents\\dev\\thrust\\assets\\spritesheets",
+  "images": [
+    {
+      "name": "0010.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0010.png",
+      "folder": ""
+    },
+    {
+      "name": "0011.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0011.png",
+      "folder": ""
+    },
+    {
+      "name": "0012.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0012.png",
+      "folder": ""
+    },
+    {
+      "name": "0013.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0013.png",
+      "folder": ""
+    },
+    {
+      "name": "0014.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0014.png",
+      "folder": ""
+    },
+    {
+      "name": "0015.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0015.png",
+      "folder": ""
+    },
+    {
+      "name": "0016.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0016.png",
+      "folder": ""
+    },
+    {
+      "name": "0017.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0017.png",
+      "folder": ""
+    },
+    {
+      "name": "0018.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0018.png",
+      "folder": ""
+    },
+    {
+      "name": "0019.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0019.png",
+      "folder": ""
+    },
+    {
+      "name": "0020.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0020.png",
+      "folder": ""
+    },
+    {
+      "name": "0021.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0021.png",
+      "folder": ""
+    },
+    {
+      "name": "0022.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0022.png",
+      "folder": ""
+    },
+    {
+      "name": "0023.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0023.png",
+      "folder": ""
+    },
+    {
+      "name": "0024.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0024.png",
+      "folder": ""
+    },
+    {
+      "name": "0025.png",
+      "path": "C:/Users/matt/Documents/dev/thrust/spritesheets/splosion/0025.png",
+      "folder": ""
+    }
+  ],
+  "folders": [],
+  "packOptions": {
+    "textureName": "splosion",
+    "textureFormat": "png",
+    "removeFileExtension": true,
+    "prependFolderName": true,
+    "base64Export": false,
+    "tinify": false,
+    "tinifyKey": "",
+    "scale": 1,
+    "filter": "none",
+    "exporter": "JSON (array)",
+    "fileName": "pack-result",
+    "savePath": "C:\\Users\\matt\\Documents\\dev\\thrust\\assets\\spritesheets",
+    "width": 1024,
+    "height": 1024,
+    "fixedSize": false,
+    "powerOfTwo": true,
+    "padding": 1,
+    "extrude": 0,
+    "allowRotation": false,
+    "allowTrim": true,
+    "trimMode": "trim",
+    "alphaThreshold": "0",
+    "detectIdentical": true,
+    "packer": "OptimalPacker",
+    "packerMethod": "Automatic"
+  }
+}

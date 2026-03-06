@@ -654,6 +654,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_common_assets"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad51a6e9def88caadc4ce2a5670382d6ff19fa1e7e7af934326c5c0b376bdd9f"
+dependencies = [
+ "anyhow",
+ "bevy_app",
+ "bevy_asset",
+ "bevy_reflect",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "bevy_core_pipeline"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1940,9 +1955,13 @@ dependencies = [
  "avian3d",
  "bevy",
  "bevy_asset_loader",
+ "bevy_common_assets",
  "bevy_enhanced_input",
  "bevy_skein",
  "log",
+ "rand",
+ "serde",
+ "serde_json",
  "tracing",
 ]
 
