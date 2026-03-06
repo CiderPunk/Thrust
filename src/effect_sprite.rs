@@ -76,15 +76,13 @@ fn init_mesh(
   //let quad = meshes.add(create_quad());
 
 
-   let quad =  meshes.add(Plane3d::new(Vec3::Z, Vec2::new(1., 1.)));
+   let quad =  meshes.add(Plane3d::new(Vec3::Z, Vec2::new(1.,1.)));
   //let quad = meshes.add(Sphere::new(2.).mesh().uv(32, 18));
   commands.insert_resource(EffectQuad(quad));
 }
 
-
+/*
 fn create_quad() -> Mesh {
-
-
   Mesh::new(PrimitiveTopology::TriangleList,
     RenderAssetUsages::default(),
   )
@@ -106,9 +104,8 @@ fn create_quad() -> Mesh {
     ],
   )
   .with_inserted_indices(Indices::U32(vec![0, 2, 1, 0, 3, 2]))
-
 }
-
+ */
 
 fn init_sprite_sheets(
   sprite_sheets:Res<SpriteSheetAssets>,
@@ -158,7 +155,7 @@ fn init_sprite_sheets(
 
   let material = materials.add(EffectSpriteMaterial{ 
     settings: EffectSpriteSettings { 
-      frame_rate: 10., 
+      frame_rate: 30., 
       frame_count: frame_count as u32, 
       filler: Vec2::ZERO,
     }, 
