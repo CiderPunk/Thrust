@@ -1,7 +1,6 @@
 #import bevy_pbr::{
   mesh_functions,
-
-  mesh_functions::{get_world_from_local, mesh_position_local_to_clip},
+  mesh_functions::{get_world_from_local, mesh_position_local_to_clip, mesh_position_local_to_world},
   mesh_view_bindings::globals,
   view_transformations::position_world_to_clip
 }
@@ -42,39 +41,23 @@ fn vertex(vertex:Vertex) -> VertexOutput{
   let tag:u32 = mesh_functions::get_tag(vertex.instance_index);
   //convert it back to f32
   let start_time = bitcast<f32>(tag);
-  let frame_no =u32(floor((globals.time - start_time) * settings.frame_rate)) % settings.frame_count;
+  let frame_no =u32(floor((globals.time - start_time) * settings.frame_rate));// % settings.frame_count;
 
   var position = vertex.position;
-  
-  
-  
+
   if frame_no > settings.frame_count{
     out.uv = vec2(0.,0.);
   }
   else{
-
     let frame = frames[frame_no];
-    if vertex.uv.x == 0. { 
-      position.x *= frame.trim_rect.x;
-      out.uv.x = frame.uv_rect.x; 
-    } 
-    else { 
-      position.x *= frame.trim_rect.z;
-      out.uv.x = frame.uv_rect.z; 
-    }
-    if vertex.uv.y == 0. {
-      position.y *= frame.trim_rect.y;
-      out.uv.y = frame.uv_rect.y; 
-    } 
-    else 
-    { 
-      position.y *= frame.trim_rect.w;
-      out.uv.y = frame.uv_rect.w;   
-    }
+    position.x *= mix(frame.trim_rect.x,frame.trim_rect.z, vertex.uv.x);
+    position.y *= mix(frame.trim_rect.y,frame.trim_rect.w, vertex.uv.y);
+    out.uv.x = mix(frame.uv_rect.x, frame.uv_rect.z, vertex.uv.x);
+    out.uv.y = mix(frame.uv_rect.y, frame.uv_rect.w, vertex.uv.y);
   }
 
-  let world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
-  out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4(position, 1.0));
+  let world_from_local = get_world_from_local(vertex.instance_index);
+  out.world_position = mesh_position_local_to_world(world_from_local, vec4(position, 1.0));
   out.clip_position = position_world_to_clip(out.world_position.xyz);
   return out;
 }
@@ -87,7 +70,5 @@ struct FragmentInput {
 @fragment
 fn fragment(mesh: FragmentInput) -> @location(0) vec4<f32> {
   return textureSample(atlas_texture, atlas_sampler, mesh.uv);
-
-
   //return vec4(1.,0., 0.,1.);
 }

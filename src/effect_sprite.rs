@@ -155,7 +155,7 @@ fn init_sprite_sheets(
 
   let material = materials.add(EffectSpriteMaterial{ 
     settings: EffectSpriteSettings { 
-      frame_rate: 30., 
+      frame_rate: 25., 
       frame_count: frame_count as u32, 
       filler: Vec2::ZERO,
     }, 
