@@ -15,7 +15,7 @@ impl Plugin for EffectSpritePlugin{
   fn build(&self, app: &mut App) {
     app
       .init_resource::<EffectMaterials>()
-      .add_plugins(JsonAssetPlugin::<SpriteMapData>::new(&["map.json"]))
+      .add_plugins(JsonAssetPlugin::<SpriteMapData>::new(&["json"]))
       .add_plugins(MaterialPlugin::<EffectSpriteMaterial>::default())
       .configure_loading_state(
         LoadingStateConfig::new(AssetLoadState::Startup)
@@ -218,12 +218,13 @@ impl Material for EffectSpriteMaterial {
 
 #[derive(AssetCollection, Resource)]
 pub struct SpriteSheetAssets{
-  #[asset(path="spritesheets/splosion.png")]
-  pub splosion_image: Handle<Image>,
-  #[asset(path="spritesheets/splosion.map.json")]
+  #[asset(paths("effect_sprites/splosion.png"), collection(typed))]
+  images: Vec<Handle<Image>>,
+  #[asset(path="effect_sprites/splosion.json")]
   pub splosion_map:Handle<SpriteMapData>,
 }
 
+// region: sprite map
 
 #[derive(Resource)]
 struct SpriteSheetMap(Handle<SpriteMapData>);
@@ -277,3 +278,4 @@ struct FrameData{
   pivot:Point,
 }
 
+// endregion

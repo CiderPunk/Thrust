@@ -41,7 +41,9 @@ fn vertex(vertex:Vertex) -> VertexOutput{
   let tag:u32 = mesh_functions::get_tag(vertex.instance_index);
   //convert it back to f32
   let start_time = bitcast<f32>(tag);
-  let frame_no =u32(floor((globals.time - start_time) * settings.frame_rate));// % settings.frame_count;
+  let frame_no =u32(floor((globals.time - start_time) * settings.frame_rate));
+  //continuous mode
+  //let frame_no =u32(floor((globals.time - start_time) * settings.frame_rate)) % settings.frame_count;
 
   var position = vertex.position;
 
