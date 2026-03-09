@@ -186,7 +186,12 @@ fn spawn_player(
       children![
         (
           Weapon::default(),
-          ProjectileGun::default(),
+          ProjectileGun{ 
+            warm_up: Timer::from_seconds(0.0,TimerMode::Once),
+            cool_down: Timer::from_seconds(0.0,TimerMode::Once),
+            fire_rate: Timer::from_seconds(0.2, TimerMode::Repeating),
+            ..default()
+          },
           Transform::from_xyz(0.,0.,0.),
         ),
         (

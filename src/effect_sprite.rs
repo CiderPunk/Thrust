@@ -1,22 +1,20 @@
+use std::f32::consts::PI;
+
 use bevy::{
-  mesh::MeshTag, platform::collections::HashMap, prelude::*, render::render_resource::{AsBindGroup, ShaderType}, shader::ShaderRef
+  light::NotShadowCaster, mesh::MeshTag, platform::collections::HashMap, prelude::*, render::render_resource::{AsBindGroup, ShaderType}, shader::ShaderRef
 };
 use bevy_asset_loader::prelude::*;
 use bevy_common_assets::json::JsonAssetPlugin;
-use crate::{asset_management::AssetLoadState, game_state::GameState};
+use bevy_prng::WyRand;
+use bevy_rand::global::GlobalRng;
+use rand::Rng;
+use crate::{asset_management::AssetLoadState, game_state::GameState, movement::Velocity};
 
 const MAX_EFFECT_FRAMES:usize = 50;
 
 const EFFECT_SPRITE_SHADER_PATH: &str = "shaders/animated_uv.wgsl";
 
 const EFFECT_TYPE_SPLOSION:&'static str = "splosion";
-
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum EffectSpriteType {
-  Splosion,
-}
-
 
 pub struct EffectSpritePlugin;
 
@@ -33,10 +31,11 @@ impl Plugin for EffectSpritePlugin{
           .load_collection::<SpriteSheetAssets>(),
       )
       .add_message::<EffectSpriteMessage>()
-      .add_systems(Startup, (init_effect_definitions, init_mesh))
-      .add_systems(OnEnter(AssetLoadState::Startup), load_sprite_sheets)
-      .add_systems(OnEnter(AssetLoadState::Loaded), init_sprite_sheets)
-      .add_systems(OnEnter(GameState::Initialize), spawn_effect_sprites);
+      .add_systems(Startup, (init_effect_definitions,init_mesh))
+      .add_systems(PostStartup, load_sprite_sheets)
+      .add_systems(OnEnter(AssetLoadState::Loaded), init_sprite_sheet_materials)
+      .add_systems(Update, spawn_effect_sprites);
+    info!("effect sprite setup");
   }
 }
 
@@ -54,6 +53,7 @@ struct EffectDefinitionCollection(Vec<EffectSpriteDefinition>);
 fn init_effect_definitions(
   mut effects:ResMut<EffectDefinitionCollection>,
 ){
+  info!("registering effects");
   effects.0.push(
    EffectSpriteDefinition {
     effect_type: EFFECT_TYPE_SPLOSION,
@@ -78,6 +78,8 @@ fn load_sprite_sheets(
   effect_defs:Res<EffectDefinitionCollection>,
   mut dynamic_assets: ResMut<DynamicAssets>,
 ){ 
+
+  info!("registering effect assets");
   let image_paths = effect_defs.0.iter().map(|f| format!("{}.png", f.path)).collect();
   let map_paths = effect_defs.0.iter().map(|f| format!("{}.json", f.path)).collect();
   dynamic_assets.register_asset(
@@ -119,19 +121,33 @@ fn spawn_effect_sprites(
   mesh: Res<EffectQuad>,
   effects: Res<EffectMaterials>,
   time: Res<Time>,
+  mut rng: Single<&mut WyRand, With<GlobalRng>>
 ) {
   let offset: u32 = time.elapsed_secs_wrapped().to_bits();
   for effect_message in reader.read(){
-    info!("spawning effect");
+  info!("spawning effect");
+    
+
+    let Some(material_collection) = effects.0.get(&effect_message.effect_type) else{
+      warn!("Unrecognized effect type {}", effect_message.effect_type);
+      continue;
+    };
+
+    let material_id = rng.random_range(0 .. material_collection.len());
+    //TODO: randomly select one of these!
+    let material = material_collection[material_id].clone();
+
     commands.spawn((
       Mesh3d(mesh.0.clone()),
-    //  MeshMaterial3d(effects.splosion.clone()),
-      Transform::from_xyz(0., 0., 0.).with_scale(Vec3::splat(10.)),
+      MeshMaterial3d(material),
+      Transform::from_translation(effect_message.translation)
+        .with_scale(Vec3::splat(effect_message.scale))
+        .with_rotation(Quat::from_rotation_z(rng.random_range(-1. ..1.) * PI)),
+      Velocity(effect_message.velocity),
       MeshTag(offset),
+      NotShadowCaster,
     ));
-
-    }  
-    
+  }  
 }
 
 
@@ -140,34 +156,43 @@ fn init_mesh(
   mut meshes: ResMut<Assets<Mesh>>,
   mut commands:Commands,
 ){
+  info!("creating effect mesh");
   //let quad = meshes.add(create_quad());
    let quad =  meshes.add(Plane3d::new(Vec3::Z, Vec2::new(1.,1.)));
   //let quad = meshes.add(Sphere::new(2.).mesh().uv(32, 18));
   commands.insert_resource(EffectQuad(quad));
 }
 
-fn init_sprite_sheets(
+
+
+/**
+ * create all registered sprite sheet materials
+ */
+fn init_sprite_sheet_materials(
   effect_defs:Res<EffectDefinitionCollection>,
   sprite_resources:Res<SpriteSheetAssets>,
   sprite_map_assets: Res<Assets<SpriteMapData>>,
   mut materials: ResMut<Assets<EffectSpriteMaterial>>,
   mut effect_materials:ResMut<EffectMaterials>,
 ){
+  info!("creating effect materials");
   for (i,effect_def) in effect_defs.0.iter().enumerate(){
-    let material = init_sprite_sheet(sprite_resources.maps[i].clone(), sprite_resources.images[i].clone(), effect_def.frame_rate, sprite_map_assets, materials);
-
-
+    let material = init_sprite_sheet_material(sprite_resources.maps[i].clone(), sprite_resources.images[i].clone(), effect_def.frame_rate, &sprite_map_assets, &mut materials);
+    let material_collection = effect_materials.0.entry(effect_def.effect_type.to_string())
+      .or_insert(Vec::new());
+    material_collection.push(material);
   }
-
 }
 
-
-fn init_sprite_sheet(
+/**
+ * Create a single sprite sheet material from a map and image
+ */
+fn init_sprite_sheet_material(
   sprite_sheet_map:Handle<SpriteMapData>,
   sprite_sheet_image:Handle<Image>,
   frame_rate:f32,
   sprite_map_assets: &Res<Assets<SpriteMapData>>,
-  mut materials: ResMut<Assets<EffectSpriteMaterial>>,
+  materials: &mut Assets<EffectSpriteMaterial>,
 ) -> Handle<EffectSpriteMaterial>{
   let Some(sprite_map) = sprite_map_assets.get(sprite_sheet_map.id()) else {
     panic!("Failed loading sprite map");
@@ -216,11 +241,11 @@ fn init_sprite_sheet(
     texture_atlas: sprite_sheet_image.clone(), 
     alpha_mode: AlphaMode::Premultiplied
    });
-   (material)
+   material.clone()
 }
 
 #[derive(Resource, Default)]
-pub struct EffectMaterials(HashMap<String, Vec<EffectSpriteMaterial>>);
+pub struct EffectMaterials(HashMap<String, Vec<Handle<EffectSpriteMaterial>>>);
 
 
 #[derive(Default, Clone, Copy, AsBindGroup, Debug, ShaderType)]

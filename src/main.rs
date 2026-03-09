@@ -12,13 +12,18 @@ mod macros;
 mod physics;
 mod weapons;
 mod effect_sprite;
+mod movement;
+mod bullet;
 
 use bevy::{asset::AssetMetaCheck, color::palettes::css::WHITE, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
 use bevy_skein::SkeinPlugin;
 use avian3d::prelude::*;
+use bevy_prng::WyRand;
+use bevy_rand::plugin::EntropyPlugin;
 
-use crate::{asset_management::AssetManagementPlugin, camera::CameraPlugin, cargo::CargoPlugin, effect_sprite::EffectSpritePlugin, game::GamePlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, map::MapPlugin, player::PlayerPlugin, shaders::ShaderPlugin, static_lights::StaticLightsPlugin, weapons::WeaponsPlugin};
+
+use crate::{asset_management::AssetManagementPlugin, bullet::BulletPlugin, camera::CameraPlugin, cargo::CargoPlugin, effect_sprite::EffectSpritePlugin, game::GamePlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, map::MapPlugin, movement::MovementPlugin, player::PlayerPlugin, shaders::ShaderPlugin, static_lights::StaticLightsPlugin, weapons::WeaponsPlugin};
 
 
 const APP_NAME: &str = "Caves";
@@ -42,6 +47,7 @@ fn main() {
           ..default()
         }),
       )
+    .add_plugins(EntropyPlugin::<WyRand>::default())
     .add_plugins((
       SkeinPlugin::default(), 
       PhysicsPlugins::default(),
@@ -61,6 +67,10 @@ fn main() {
       CargoPlugin,
       WeaponsPlugin,
       EffectSpritePlugin,
+    ))
+    .add_plugins((
+      MovementPlugin,
+      BulletPlugin,
     ))
     .insert_resource(ClearColor(Color::srgb(0., 0., 0.)))
     .insert_resource(GlobalAmbientLight {
