@@ -83,6 +83,8 @@ fn spawn_cargo(
       TransformInterpolation,
       LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
       cargo_resources.crate_collider.clone().unwrap(),
+      MaxAngularSpeed(4.0),
+      AngularDamping(20.0),
     ));
 
   }
