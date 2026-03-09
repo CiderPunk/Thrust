@@ -26,7 +26,9 @@ tracing = { version = "0.1", features = [
     "max_level_debug",
     "release_max_level_warn",
 ] }
-bevy_asset_loader = "0.25.0"
+bevy_asset_loader = { version= "0.25.0", features=[
+  "standard_dynamic_assets",
+]}
 bevy_enhanced_input = "0.24"
 
 
