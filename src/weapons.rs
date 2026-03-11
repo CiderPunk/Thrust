@@ -18,22 +18,21 @@ pub struct Weapon{
 
 #[derive(Component)]
 pub struct ProjectileGun{
-  pub warm_up:Timer,
-  pub cool_down:Timer,
-  pub fire_rate:Timer,
-  pub warm:bool,
+  pub firing:bool,
+  fire_delay:Timer,
+  cool_down:Timer,
 }
 
-impl Default for ProjectileGun{
-  fn default() -> Self {
-    Self { 
-      fire_rate: Timer::from_seconds(0.5, TimerMode::Repeating), 
-      warm:false,
-      warm_up:Timer::from_seconds(0., TimerMode::Once),
-      cool_down: Timer::from_seconds(0., TimerMode::Once)
+impl ProjectileGun{
+  pub fn new(fire_delay:f32, cool_down:f32)->Self{
+    Self{ 
+      firing:false,  
+      fire_delay:Timer::from_seconds(fire_delay, TimerMode::Repeating),
+      cool_down:Timer::from_seconds(cool_down,TimerMode::Once), 
     }
   }
 }
+
 
 fn update_projectile_gun(
   query:Query<(&Weapon, &mut ProjectileGun, &GlobalTransform)>,
@@ -41,29 +40,21 @@ fn update_projectile_gun(
   time:Res<Time>,
 ){
   for (weapon, mut gun, transform) in query{
+    gun.fire_delay.tick(time.delta());
     gun.cool_down.tick(time.delta());
-    if !gun.cool_down.is_finished(){ continue; }
-    if !weapon.trigger_active { 
-      if gun.warm {
-        gun.cool_down.reset();
-        gun.warm_up.reset();
-      }
-      continue;
+    if !weapon.trigger_active{ 
+      gun.firing = false;
+      continue; 
     }
-    gun.warm_up.tick(time.delta());
-    if gun.warm_up.just_finished(){ 
-      gun.warm = true;
-      gun.fire_rate.finish();
+    if !gun.firing {
+      if !gun.cool_down.is_finished(){ continue; }
+      gun.fire_delay.finish();
+      gun.firing = true;
     }
-    if gun.warm{
-      gun.fire_rate.tick(time.delta());
-      if gun.fire_rate.just_finished(){
-        info!("pew");
-        effect_writer.write(EffectSpriteMessage::new("splosion".to_string(), transform.translation(), 8., Vec3::ZERO));
-      }
-
-    } 
-
+    if gun.fire_delay.is_finished(){ 
+      effect_writer.write(EffectSpriteMessage::new("splosion".to_string(), transform.translation(), 20., Vec3::ZERO));
+      gun.cool_down.reset();
+    }
   }
 
 }
