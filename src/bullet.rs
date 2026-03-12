@@ -1,4 +1,4 @@
-use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{Forces, PhysicsSystems, RigidBodyForces, SpatialQuery, SpatialQueryFilter};
 use bevy::{prelude::*, render::render_resource::encase::private::Length};
 
 use crate::{effect_sprite::EffectSpriteMessage, game_schedule::GameSchedule};
@@ -12,7 +12,7 @@ impl Plugin for BulletPlugin{
     app
       .init_resource::<BulletResources>()
       .add_systems(Startup, init_bullets)
-      .add_systems(Update, (update_bullets).in_set(GameSchedule::EntityUpdates));
+      .add_systems(Update, (update_bullets).in_set(PhysicsSystems::First));
   }
 }
 
@@ -47,6 +47,7 @@ impl Bullet{
 
 fn update_bullets(
   query:Query<(&mut Bullet, &mut Transform, Entity)>,
+  mut forces_query:Query<Forces>,
   time:Res<Time>,
   spatial_query:SpatialQuery,
   mut commands:Commands,
@@ -61,6 +62,13 @@ fn update_bullets(
     let distance = bullet.speed * time.delta_secs();
     if let Some(hit) = spatial_query.cast_ray(transform.translation, bullet.direction, 
       distance, false, &SpatialQueryFilter::from_excluded_entities([bullet.owner])){
+
+      if let Ok(mut forces) = forces_query.get_mut(hit.entity){
+        let hit_location = transform.translation + (bullet.direction * hit.distance);
+        forces.apply_linear_impulse_at_point(bullet.direction * bullet.speed, hit_location)
+
+      }
+
       effect_writer.write(
         EffectSpriteMessage::new(
           "splosion".to_string(), 
