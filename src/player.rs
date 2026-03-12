@@ -15,8 +15,6 @@ const TETHER_START_DISTANCE: f32 = 10.;
 const TETHER_MAX_DISTANCE: f32 = 20.;
 const TETHER_MIN_DISTANCE: f32 = 4.;
 
-
-
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
   fn build(&self, app: &mut App) {

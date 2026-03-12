@@ -8,7 +8,7 @@ use bevy_common_assets::json::JsonAssetPlugin;
 use bevy_prng::WyRand;
 use bevy_rand::global::GlobalRng;
 use rand::Rng;
-use crate::{asset_management::AssetLoadState, game_state::GameState, movement::Velocity};
+use crate::{asset_management::AssetLoadState, movement::Velocity};
 
 const MAX_EFFECT_FRAMES:usize = 50;
 
@@ -153,7 +153,7 @@ fn spawn_effect_sprites(
 
 
 fn remove_effect_sprites(
-  mut query:Query<(Entity, &mut EffectEntity)>,
+  query:Query<(Entity, &mut EffectEntity)>,
   mut commands:Commands,
   time:Res<Time>,
 ){

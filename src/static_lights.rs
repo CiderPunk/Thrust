@@ -1,5 +1,4 @@
 use bevy::{light::NotShadowCaster, prelude::*};
-use bevy_asset_loader::loading_state::LoadingStateAppExt;
 use crate::{game_state::GameState, shaders::ShaderMaterials};
 
 pub struct StaticLightsPlugin;
@@ -25,18 +24,6 @@ impl Plugin for StaticLightsPlugin {
   }
   
 }
-
-
-
-/*
-fn init_static_lights(
-  query:Query<&StaticSpotLight>,
-){
-  for (marker) in query.iter(){
-    info!("light initialized {:}", marker.throw_distance);
-  }
-}
- */
 
 fn init_ray_material(
   query:Query<(Entity, &Name), With<LightRaysMaterial>>,
