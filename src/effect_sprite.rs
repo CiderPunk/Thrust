@@ -8,7 +8,7 @@ use bevy_common_assets::json::JsonAssetPlugin;
 use bevy_prng::WyRand;
 use bevy_rand::global::GlobalRng;
 use rand::Rng;
-use crate::{asset_management::AssetLoadState, game_state::GameState, movement::Velocity};
+use crate::{asset_management::AssetLoadState, movement::Velocity};
 
 const MAX_EFFECT_FRAMES:usize = 50;
 
@@ -23,7 +23,7 @@ impl Plugin for EffectSpritePlugin{
     app
       
       .init_resource::<EffectDefinitionCollection>()
-      .init_resource::<EffectMaterials>()
+      .init_resource::<EffectMaterialsMap>()
       .add_plugins(JsonAssetPlugin::<SpriteMapData>::new(&["json"]))
       .add_plugins(MaterialPlugin::<EffectSpriteMaterial>::default())
       .configure_loading_state(
@@ -34,7 +34,7 @@ impl Plugin for EffectSpritePlugin{
       .add_systems(Startup, (init_effect_definitions,init_mesh))
       .add_systems(PostStartup, load_sprite_sheets)
       .add_systems(OnEnter(AssetLoadState::Loaded), init_sprite_sheet_materials)
-      .add_systems(Update, spawn_effect_sprites);
+      .add_systems(Update, (spawn_effect_sprites, remove_effect_sprites));
     info!("effect sprite setup");
   }
 }
@@ -115,19 +115,19 @@ impl EffectSpriteMessage {
 }
 
 
+#[derive(Component)]
+struct EffectEntity(Timer);
+
 fn spawn_effect_sprites(
   mut reader:MessageReader<EffectSpriteMessage>,
   mut commands: Commands,
   mesh: Res<EffectQuad>,
-  effects: Res<EffectMaterials>,
+  effects: Res<EffectMaterialsMap>,
   time: Res<Time>,
   mut rng: Single<&mut WyRand, With<GlobalRng>>
 ) {
   let offset: u32 = time.elapsed_secs_wrapped().to_bits();
   for effect_message in reader.read(){
-  info!("spawning effect");
-    
-
     let Some(material_collection) = effects.0.get(&effect_message.effect_type) else{
       warn!("Unrecognized effect type {}", effect_message.effect_type);
       continue;
@@ -135,11 +135,12 @@ fn spawn_effect_sprites(
 
     let material_id = rng.random_range(0 .. material_collection.len());
     //TODO: randomly select one of these!
-    let material = material_collection[material_id].clone();
+    let effect_material = material_collection[material_id].clone();
 
     commands.spawn((
+      EffectEntity(Timer::from_seconds(effect_material.duration,TimerMode::Once)),
       Mesh3d(mesh.0.clone()),
-      MeshMaterial3d(material),
+      MeshMaterial3d(effect_material.material.clone()),
       Transform::from_translation(effect_message.translation)
         .with_scale(Vec3::splat(effect_message.scale))
         .with_rotation(Quat::from_rotation_z(rng.random_range(-1. ..1.) * PI)),
@@ -150,6 +151,20 @@ fn spawn_effect_sprites(
   }  
 }
 
+
+fn remove_effect_sprites(
+  query:Query<(Entity, &mut EffectEntity)>,
+  mut commands:Commands,
+  time:Res<Time>,
+){
+  for (entity, mut effect) in query{
+    effect.0.tick(time.delta());
+    if effect.0.is_finished(){
+      commands.entity(entity).despawn();
+      
+    }
+  }
+}
 
 
 fn init_mesh(
@@ -173,7 +188,7 @@ fn init_sprite_sheet_materials(
   sprite_resources:Res<SpriteSheetAssets>,
   sprite_map_assets: Res<Assets<SpriteMapData>>,
   mut materials: ResMut<Assets<EffectSpriteMaterial>>,
-  mut effect_materials:ResMut<EffectMaterials>,
+  mut effect_materials:ResMut<EffectMaterialsMap>,
 ){
   info!("creating effect materials");
   for (i,effect_def) in effect_defs.0.iter().enumerate(){
@@ -193,7 +208,7 @@ fn init_sprite_sheet_material(
   frame_rate:f32,
   sprite_map_assets: &Res<Assets<SpriteMapData>>,
   materials: &mut Assets<EffectSpriteMaterial>,
-) -> Handle<EffectSpriteMaterial>{
+) -> EffectMaterial{
   let Some(sprite_map) = sprite_map_assets.get(sprite_sheet_map.id()) else {
     panic!("Failed loading sprite map");
   };
@@ -240,13 +255,20 @@ fn init_sprite_sheet_material(
     frames: frame_defs, 
     texture_atlas: sprite_sheet_image.clone(), 
     alpha_mode: AlphaMode::Premultiplied
-   });
-   material.clone()
+  });
+  EffectMaterial{ material, duration: frame_count as f32 / frame_rate }
 }
 
 #[derive(Resource, Default)]
-pub struct EffectMaterials(HashMap<String, Vec<Handle<EffectSpriteMaterial>>>);
+pub struct EffectMaterialsMap(HashMap<String, Vec<EffectMaterial>>);
 
+
+
+#[derive(Resource, Default, Clone)]
+pub struct EffectMaterial{
+  material:Handle<EffectSpriteMaterial>,
+  duration:f32,
+}
 
 #[derive(Default, Clone, Copy, AsBindGroup, Debug, ShaderType)]
 pub struct EffectSpriteSettings {

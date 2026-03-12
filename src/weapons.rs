@@ -1,6 +1,7 @@
+use avian3d::prelude::{Forces, LinearVelocity, RigidBodyForces};
 use bevy::{math::VectorSpace, prelude::*};
 
-use crate::effect_sprite::EffectSpriteMessage;
+use crate::{bullet::{Bullet, BulletResources}, effect_sprite::EffectSpriteMessage};
 
 pub struct WeaponsPlugin;
 impl Plugin for WeaponsPlugin{
@@ -18,52 +19,63 @@ pub struct Weapon{
 
 #[derive(Component)]
 pub struct ProjectileGun{
-  pub warm_up:Timer,
-  pub cool_down:Timer,
-  pub fire_rate:Timer,
-  pub warm:bool,
+  pub firing:bool,
+  fire_delay:Timer,
+  cool_down:Timer,
 }
 
-impl Default for ProjectileGun{
-  fn default() -> Self {
-    Self { 
-      fire_rate: Timer::from_seconds(0.5, TimerMode::Repeating), 
-      warm:false,
-      warm_up:Timer::from_seconds(0., TimerMode::Once),
-      cool_down: Timer::from_seconds(0., TimerMode::Once)
+impl ProjectileGun{
+  pub fn new(fire_delay:f32, cool_down:f32)->Self{
+    Self{ 
+      firing:false,  
+      fire_delay:Timer::from_seconds(fire_delay, TimerMode::Repeating),
+      cool_down:Timer::from_seconds(cool_down,TimerMode::Once), 
     }
   }
 }
+
 
 fn update_projectile_gun(
-  query:Query<(&Weapon, &mut ProjectileGun, &GlobalTransform)>,
-  mut effect_writer:MessageWriter<EffectSpriteMessage>,
+  query:Query<(&Weapon, &mut ProjectileGun, &GlobalTransform, &ChildOf)>,
+  
+  parent_velocity_query:Query<&LinearVelocity, Without<Weapon>>,
+  //mut parent_force_query:Query<Forces, Without<Weapon>>,
   time:Res<Time>,
+  bullet_resources:Res<BulletResources>,
+  mut commands:Commands,
 ){
-  for (weapon, mut gun, transform) in query{
+  for (weapon, mut gun, transform, child_of) in query{
+    gun.fire_delay.tick(time.delta());
     gun.cool_down.tick(time.delta());
-    if !gun.cool_down.is_finished(){ continue; }
-    if !weapon.trigger_active { 
-      if gun.warm {
-        gun.cool_down.reset();
-        gun.warm_up.reset();
-      }
-      continue;
+    if !weapon.trigger_active{ 
+      gun.firing = false;
+      continue; 
     }
-    gun.warm_up.tick(time.delta());
-    if gun.warm_up.just_finished(){ 
-      gun.warm = true;
-      gun.fire_rate.finish();
+    if !gun.firing {
+      if !gun.cool_down.is_finished(){ continue; }
+      gun.fire_delay.finish();
+      gun.firing = true;
     }
-    if gun.warm{
-      gun.fire_rate.tick(time.delta());
-      if gun.fire_rate.just_finished(){
-        info!("pew");
-        effect_writer.write(EffectSpriteMessage::new("splosion".to_string(), transform.translation(), 8., Vec3::ZERO));
-      }
+    if gun.fire_delay.is_finished(){ 
 
-    } 
-
+      let mut velocity = transform.up() * 80.;
+      if let Ok(parent_velocity) = parent_velocity_query.get(child_of.0) {
+        //forces.apply_local_force(  transform.up() * -8.);
+        velocity += parent_velocity.0;
+      };
+      commands.spawn((
+        Transform::from_translation(transform.translation()),
+        Bullet::from_vector(velocity, child_of.0, 1.),
+        Mesh3d(bullet_resources.bullet_mesh.clone()),
+        MeshMaterial3d(bullet_resources.bullet_material.clone()),
+      ));
+      //apply forces
+      /*
+      if let Ok(mut forces) = parent_force_query.get_mut(child_of.0){
+        forces.apply_linear_impulse(transform.up() * -8.);
+      };
+       */
+      gun.cool_down.reset();
+    }
   }
-
 }
