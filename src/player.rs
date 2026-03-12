@@ -178,7 +178,7 @@ fn spawn_player(
         ),
         (
           Action::<Shoot>::new(),
-          bindings![KeyCode::Space],
+          bindings![KeyCode::Space, GamepadButton::South],
         )
       ]),
       children![

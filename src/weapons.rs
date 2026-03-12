@@ -38,8 +38,8 @@ impl ProjectileGun{
 fn update_projectile_gun(
   query:Query<(&Weapon, &mut ProjectileGun, &GlobalTransform, &ChildOf)>,
   
-  parent_velocity_query:Query<&LinearVelocity, Without<Weapon>>,
-  //mut parent_force_query:Query<Forces, Without<Weapon>>,
+  //parent_velocity_query:Query<&LinearVelocity, Without<Weapon>>,
+  mut parent_force_query:Query<Forces, Without<Weapon>>,
   time:Res<Time>,
   bullet_resources:Res<BulletResources>,
   mut commands:Commands,
@@ -59,9 +59,9 @@ fn update_projectile_gun(
     if gun.fire_delay.is_finished(){ 
 
       let mut velocity = transform.up() * 80.;
-      if let Ok(parent_velocity) = parent_velocity_query.get(child_of.0) {
-        //forces.apply_local_force(  transform.up() * -8.);
-        velocity += parent_velocity.0;
+      if let Ok(mut forces) = parent_force_query.get_mut(child_of.0){
+        forces.apply_linear_impulse(transform.up() * -20.);
+        velocity += forces.linear_velocity();
       };
       commands.spawn((
         Transform::from_translation(transform.translation()),
@@ -69,12 +69,6 @@ fn update_projectile_gun(
         Mesh3d(bullet_resources.bullet_mesh.clone()),
         MeshMaterial3d(bullet_resources.bullet_material.clone()),
       ));
-      //apply forces
-      /*
-      if let Ok(mut forces) = parent_force_query.get_mut(child_of.0){
-        forces.apply_linear_impulse(transform.up() * -8.);
-      };
-       */
       gun.cool_down.reset();
     }
   }
