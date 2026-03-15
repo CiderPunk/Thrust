@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::{ecs::system::command, gltf::GltfMesh, math::VectorSpace, prelude::*};
 use serde::de;
 
@@ -149,9 +151,10 @@ fn deploy_turret(
     deploy.extend_timer.tick(time.delta());
     for child in children{
       if let Ok(mut transform) = tower_query.get_mut(*child){
-        transform.translation.y = (deploy.extend_timer.fraction() * 5.5) + 2.;
+        let fraction = deploy.extend_timer.fraction();
+        transform.translation.y = (fraction * 5.5) + 2.;
+        transform.rotation = Quat::from_axis_angle(Vec3::Y, -0.5 * PI *fraction );
       }
-
     }
 
 
