@@ -1,4 +1,4 @@
-use bevy::{gltf::GltfMesh, math::VectorSpace, prelude::*};
+use bevy::{ecs::system::command, gltf::GltfMesh, math::VectorSpace, prelude::*};
 use serde::de;
 
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative, player::Player};
@@ -12,8 +12,7 @@ impl Plugin for TurretPlugin{
       })  
       .add_systems(OnEnter(AssetLoadState::Loaded), init_turret_resources)
       .add_systems(OnEnter(GameState::Initialize), spawn_turrets)
-      .add_systems(Update, (check_target_proximity))
-      .add_observer(turret_activate);
+      .add_systems(Update, (check_target_proximity, deploy_turret));
   }
 }
 
@@ -24,7 +23,6 @@ struct TurretResources{
   base_mesh:Handle<Mesh>,
   tower_mesh:Handle<Mesh>,
   gimble_mesh:Handle<Mesh>,
-  shroud_mesh:Handle<Mesh>,
   gun_mesh:Handle<Mesh>,
 }
 
@@ -39,20 +37,23 @@ struct Turret{}
 
 
 #[derive(Component, Default)]
+struct TurretTower;
+
+
+#[derive(Component, Default)]
+struct TurretGimble;
+
+
+#[derive(Component, Default)]
 struct Tracking{
   target:Option<Entity>,
 }
 
 
-fn turret_activate(
-  activated_turret:On<Add, Tracking>,
-
-){
-
-  info!("Tracking {}", activated_turret.entity);
-
+#[derive(Component, Default)]
+struct Deploy{
+  extend_timer:Timer,
 }
-
 
 fn init_turret_resources(
   mut turret_resources:ResMut<TurretResources>,
@@ -67,7 +68,6 @@ fn init_turret_resources(
   let base = get_gltf_primative!(gltf_meshes, models,"turret-base" );
   let tower = get_gltf_primative!(gltf_meshes, models,"turret-tower" );
   let gimble = get_gltf_primative!(gltf_meshes, models,"turret-gimble" );
-  let shroud = get_gltf_primative!(gltf_meshes, models,"turret-shroud" );
   let gun = get_gltf_primative!(gltf_meshes, models,"turret-gun" );
 
   turret_resources.turret_material = base.material.clone().ok_or("no flame material")?;
@@ -75,7 +75,6 @@ fn init_turret_resources(
   turret_resources.base_mesh = base.mesh.clone();
   turret_resources.gimble_mesh = gimble.mesh.clone();
   turret_resources.tower_mesh = tower.mesh.clone();
-  turret_resources.shroud_mesh = shroud.mesh.clone();
   turret_resources.gun_mesh = gun.mesh.clone();
   Ok(())
 }
@@ -98,20 +97,17 @@ fn spawn_turrets(
       start_transform.clone().with_scale(Vec3::splat(1.)),
       children![
         (
+          TurretTower,
           Mesh3d(turret_resources.tower_mesh.clone()),
           MeshMaterial3d(turret_resources.turret_material.clone()),
           Transform::from_translation(Vec3::new(0.,2.,0.)),
           children![
             (
+              TurretGimble,
               Mesh3d(turret_resources.gimble_mesh.clone()),
               MeshMaterial3d(turret_resources.turret_material.clone()),
               Transform::from_translation(Vec3::new(0.,0.,0.)),
               children![
-                (
-                  Mesh3d (turret_resources.shroud_mesh.clone()),
-                  MeshMaterial3d(turret_resources.turret_material.clone()),
-                  Transform::from_translation(Vec3::new(0.,0.,0.)),
-                ),
                 (
                   Mesh3d (turret_resources.gun_mesh.clone()),
                   MeshMaterial3d(turret_resources.turret_material.clone()),
@@ -133,9 +129,35 @@ fn check_target_proximity(
 ){
   for (turret, turret_transform) in turret_query{
     for (player, player_transform) in target_query{
-      if (turret_transform.translation() - player_transform.translation()).length_squared() < 400.{
-        commands.entity(turret).insert(Tracking{ target: Some(player) });
+      if (turret_transform.translation() - player_transform.translation()).length_squared() < (40. * 40.){
+        commands.entity(turret).insert((
+          Tracking{ target: Some(player) },
+          Deploy{ extend_timer:Timer::from_seconds(0.5, TimerMode::Once )}
+        ));
       }
     }
+  }
+}
+
+fn deploy_turret(
+  query:Query<(&mut Deploy,  Entity, &Children)>,
+  mut tower_query:Query<&mut Transform, With<TurretTower>>,
+  time:Res<Time>,
+  mut commands:Commands,
+){
+  for (mut deploy, entity, children) in query{
+    deploy.extend_timer.tick(time.delta());
+    for child in children{
+      if let Ok(mut transform) = tower_query.get_mut(*child){
+        transform.translation.y = (deploy.extend_timer.fraction() * 5.5) + 2.;
+      }
+
+    }
+
+
+    if deploy.extend_timer.is_finished(){
+      commands.entity(entity).remove::<Deploy>();
+    }
+
   }
 }
