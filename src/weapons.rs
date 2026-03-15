@@ -1,5 +1,5 @@
 use avian3d::prelude::{Forces, LinearVelocity, RigidBodyForces};
-use bevy::{math::VectorSpace, prelude::*};
+use bevy::{light::NotShadowCaster, math::VectorSpace, prelude::*};
 
 use crate::{bullet::{Bullet, BulletResources}, effect_sprite::EffectSpriteMessage};
 
@@ -64,6 +64,7 @@ fn update_projectile_gun(
         velocity += forces.linear_velocity();
       };
       commands.spawn((
+        NotShadowCaster,
         Transform::from_translation(transform.translation()),
         Bullet::from_vector(velocity, child_of.0, 1.),
         Mesh3d(bullet_resources.bullet_mesh.clone()),
