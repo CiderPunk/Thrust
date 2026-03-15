@@ -1,9 +1,14 @@
 use std::f32::consts::PI;
-
-use bevy::{ecs::system::command, gltf::GltfMesh, math::VectorSpace, prelude::*};
-use serde::de;
-
+use bevy::{gltf::GltfMesh, math::FloatPow, prelude::*};
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative, player::Player};
+
+
+
+const TURRET_ACTIVATION_RANGE:f32 = 60.;
+const TURRET_SEARCH_TIMER:f32 = 5.;
+const DEPLOY_TIME: f32 = 0.5;
+
+
 pub struct TurretPlugin;
 
 impl Plugin for TurretPlugin{
@@ -14,9 +19,18 @@ impl Plugin for TurretPlugin{
       })  
       .add_systems(OnEnter(AssetLoadState::Loaded), init_turret_resources)
       .add_systems(OnEnter(GameState::Initialize), spawn_turrets)
-      .add_systems(Update, (check_target_proximity, deploy_turret));
+      .add_systems(Update, (
+        check_target_proximity,
+        check_target_escape, 
+        deploy_turret, 
+        undeploy_turret, 
+        search_timer
+      ));
   }
 }
+
+
+
 
 
 #[derive(Resource, Default)]
@@ -46,16 +60,28 @@ struct TurretTower;
 struct TurretGimble;
 
 
-#[derive(Component, Default)]
+#[derive(Component)]
 struct Tracking{
-  target:Option<Entity>,
+  target:Entity,
+}
+
+
+#[derive(Component)]
+struct Searching{
+  search_timer:Timer,
 }
 
 
 #[derive(Component, Default)]
 struct Deploy{
-  extend_timer:Timer,
+  timer:Timer,
 }
+
+#[derive(Component, Default)]
+struct UnDeploy{
+  timer:Timer,
+}
+
 
 fn init_turret_resources(
   mut turret_resources:ResMut<TurretResources>,
@@ -124,19 +150,58 @@ fn spawn_turrets(
   }
 }
 
+
 fn check_target_proximity(
-  turret_query:Query<(Entity, &GlobalTransform), (With<Turret>, Without<Tracking>)>,
+  turret_query:Query<(Entity, &GlobalTransform, Option<&Searching>), (With<Turret>, Without<Tracking>)>,
   target_query: Query<(Entity, &GlobalTransform), With<Player>>,
   mut commands:Commands,
 ){
-  for (turret, turret_transform) in turret_query{
+  for (turret, turret_transform, searching) in turret_query{
     for (player, player_transform) in target_query{
-      if (turret_transform.translation() - player_transform.translation()).length_squared() < (40. * 40.){
-        commands.entity(turret).insert((
-          Tracking{ target: Some(player) },
-          Deploy{ extend_timer:Timer::from_seconds(0.5, TimerMode::Once )}
-        ));
+      if (turret_transform.translation() - player_transform.translation()).length_squared() < TURRET_ACTIVATION_RANGE.squared(){
+        let mut turret = commands.entity(turret);
+        turret.insert(
+          Tracking{ target: player },
+        );
+        if searching.is_none(){          
+          turret.insert(
+            Deploy{ timer:Timer::from_seconds(DEPLOY_TIME, TimerMode::Once )}
+          );
+        }
       }
+    }
+  }
+}
+
+fn check_target_escape(
+  turret_query:Query<(Entity, &GlobalTransform, &Tracking), (With<Turret>, With<Tracking>, Without<Deploy>)>,
+  target_query: Query<&GlobalTransform>,
+  mut commands:Commands,
+){
+  for (turret, turret_transform, tracking) in turret_query{
+    if let Ok(target_transform) = target_query.get(tracking.target){
+      if (turret_transform.translation() - target_transform.translation()).length_squared() > TURRET_ACTIVATION_RANGE.squared(){
+        commands.entity(turret)
+          .remove::<Tracking>()
+          .insert( 
+            Searching{ search_timer: Timer::from_seconds(TURRET_SEARCH_TIMER, TimerMode::Once) }
+          );
+      }
+    }
+  }
+}
+
+fn search_timer(
+  query:Query<(&mut Searching, Entity)>,
+  time:Res<Time>,
+  mut commands:Commands,
+){
+  for (mut searcher, entity) in query{
+    searcher.search_timer.tick(time.delta());
+    if searcher.search_timer.is_finished(){
+      commands.entity(entity)
+        .remove::<Searching>()
+        .insert(UnDeploy{ timer:Timer::from_seconds(DEPLOY_TIME, TimerMode::Once)});
     }
   }
 }
@@ -148,19 +213,37 @@ fn deploy_turret(
   mut commands:Commands,
 ){
   for (mut deploy, entity, children) in query{
-    deploy.extend_timer.tick(time.delta());
+    deploy.timer.tick(time.delta());
     for child in children{
       if let Ok(mut transform) = tower_query.get_mut(*child){
-        let fraction = deploy.extend_timer.fraction();
-        transform.translation.y = (fraction * 5.5) + 2.;
+        let fraction = deploy.timer.fraction();
+        transform.translation.y = (fraction * 5.2) + 2.;
         transform.rotation = Quat::from_axis_angle(Vec3::Y, -0.5 * PI *fraction );
       }
     }
-
-
-    if deploy.extend_timer.is_finished(){
+    if deploy.timer.is_finished(){
       commands.entity(entity).remove::<Deploy>();
     }
+  }
+}
 
+fn undeploy_turret(
+  query:Query<(&mut UnDeploy,  Entity, &Children)>,
+  mut tower_query:Query<&mut Transform, With<TurretTower>>,
+  time:Res<Time>,
+  mut commands:Commands,
+){
+  for (mut deploy, entity, children) in query{
+    deploy.timer.tick(time.delta());
+    for child in children{
+      if let Ok(mut transform) = tower_query.get_mut(*child){
+        let fraction = deploy.timer.fraction();
+        transform.translation.y = ((1.-fraction) * 5.2) + 2.;
+        transform.rotation = Quat::from_axis_angle(Vec3::Y, -0.5 * PI *fraction );
+      }
+    }
+    if deploy.timer.is_finished(){
+      commands.entity(entity).remove::<UnDeploy>();
+    }
   }
 }
