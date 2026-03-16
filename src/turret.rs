@@ -23,7 +23,7 @@ impl Plugin for TurretPlugin{
         check_target_proximity,
         check_target_escape, 
         deploy_turret, 
-        undeploy_turret, 
+        retract_turret, 
         search_timer
       ));
   }
@@ -78,7 +78,7 @@ struct Deploy{
 }
 
 #[derive(Component, Default)]
-struct UnDeploy{
+struct Retract{
   timer:Timer,
 }
 
@@ -201,7 +201,7 @@ fn search_timer(
     if searcher.search_timer.is_finished(){
       commands.entity(entity)
         .remove::<Searching>()
-        .insert(UnDeploy{ timer:Timer::from_seconds(DEPLOY_TIME, TimerMode::Once)});
+        .insert(Retract{ timer:Timer::from_seconds(DEPLOY_TIME, TimerMode::Once)});
     }
   }
 }
@@ -227,8 +227,8 @@ fn deploy_turret(
   }
 }
 
-fn undeploy_turret(
-  query:Query<(&mut UnDeploy,  Entity, &Children)>,
+fn retract_turret(
+  query:Query<(&mut Retract,  Entity, &Children)>,
   mut tower_query:Query<&mut Transform, With<TurretTower>>,
   time:Res<Time>,
   mut commands:Commands,
@@ -243,7 +243,7 @@ fn undeploy_turret(
       }
     }
     if deploy.timer.is_finished(){
-      commands.entity(entity).remove::<UnDeploy>();
+      commands.entity(entity).remove::<Retract>();
     }
   }
 }
