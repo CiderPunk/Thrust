@@ -10,9 +10,8 @@ watcher = [
   "bevy/embedded_watcher",
 ]
 
-
 [dependencies]
-bevy = "0.18.0"
+bevy = { version= "0.18.1", features = ["bevy_light", "bevy_gizmos"]}
 bevy_skein = "0.5.0-rc.1"
 avian3d = "0.5"
 

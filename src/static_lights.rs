@@ -20,28 +20,28 @@ struct LightRaysMaterial;
 impl Plugin for StaticLightsPlugin {
   fn build(&self, app: &mut App) {
     app
-      .add_systems(OnEnter(GameState::Initialize), (init_static_lights, init_ray_material));
+      .add_observer(ray_material_substitute)
+      .add_systems(Startup, init_static_lights);
+
   }
-  
 }
 
-fn init_ray_material(
-  query:Query<(Entity, &Name), With<LightRaysMaterial>>,
+
+fn ray_material_substitute(
+  event: On<Add, LightRaysMaterial>,
+  mut commands:Commands,
   materials:Res<ShaderMaterials>,
-  mut commands: Commands,
 ){
-  for (entity, name) in query{
-    commands
-      .entity(entity)
+ commands
+      .entity(event.entity)
       .remove::<MeshMaterial3d<StandardMaterial>>()
       .insert((
         NotShadowCaster,
         MeshMaterial3d(materials.rays.clone())
       ));
-    info!("ray material added {}",name);
-  }
-}
+    info!("ray material added");
 
+}
 
 fn init_static_lights(
   mut query:Query<(&mut SpotLight, &StaticSpotLight)>,

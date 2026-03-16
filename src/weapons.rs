@@ -66,7 +66,7 @@ fn update_projectile_gun(
       commands.spawn((
         NotShadowCaster,
         Transform::from_translation(transform.translation()),
-        Bullet::from_vector(velocity, child_of.0, 1.),
+        Bullet::from_vector(velocity, child_of.0, 1.,10.),
         Mesh3d(bullet_resources.bullet_mesh.clone()),
         MeshMaterial3d(bullet_resources.bullet_material.clone()),
       ));

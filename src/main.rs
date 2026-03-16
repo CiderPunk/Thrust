@@ -9,13 +9,14 @@ mod static_lights;
 mod shaders;
 mod cargo;
 mod macros;
-mod physics;
+mod game_physics;
 mod weapons;
 mod effect_sprite;
 mod movement;
 mod bullet;
 mod turret;
 mod ceiling_light;
+mod health;
 
 use bevy::{asset::AssetMetaCheck, color::palettes::css::WHITE, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
@@ -25,7 +26,7 @@ use bevy_prng::WyRand;
 use bevy_rand::plugin::EntropyPlugin;
 
 
-use crate::{asset_management::AssetManagementPlugin, bullet::BulletPlugin, camera::CameraPlugin, cargo::CargoPlugin, ceiling_light::CeilingLightPlugin, effect_sprite::EffectSpritePlugin, game::GamePlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, map::MapPlugin, movement::MovementPlugin, player::PlayerPlugin, shaders::ShaderPlugin, static_lights::StaticLightsPlugin, turret::TurretPlugin, weapons::WeaponsPlugin};
+use crate::{asset_management::AssetManagementPlugin, bullet::BulletPlugin, camera::CameraPlugin, cargo::CargoPlugin, ceiling_light::CeilingLightPlugin, effect_sprite::EffectSpritePlugin, game::GamePlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, health::HealthPlugin, map::MapPlugin, movement::MovementPlugin, game_physics::GamePhysicsPlugin, player::PlayerPlugin, shaders::ShaderPlugin, static_lights::StaticLightsPlugin, turret::TurretPlugin, weapons::WeaponsPlugin};
 
 
 const APP_NAME: &str = "Caves";
@@ -54,7 +55,7 @@ fn main() {
       SkeinPlugin::default(), 
       PhysicsPlugins::default(),
       EnhancedInputPlugin,
-      //PhysicsDebugPlugin,
+      GamePhysicsPlugin,
     ))
     .add_plugins((
       GameSchedulePlugin,
@@ -75,11 +76,12 @@ fn main() {
       BulletPlugin,
       TurretPlugin,
       CeilingLightPlugin,
+      HealthPlugin,
     ))
     .insert_resource(ClearColor(Color::srgb(0., 0., 0.)))
     .insert_resource(GlobalAmbientLight {
         color: WHITE.into(),
-        brightness: 20.0,
+        brightness: 40.0,
         ..default()
     })
     .run();
