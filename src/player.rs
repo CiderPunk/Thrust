@@ -3,7 +3,7 @@ use core::f32;
 use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, time::Stopwatch};
 use bevy_enhanced_input::prelude::*;
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, physics::GameLayer, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::{GameLayer, PhysicsBody}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::Hurtable, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};
 
 
 //const PLAYER_THRUST: f32 = 250.;
@@ -137,6 +137,8 @@ fn spawn_player(
  ){
   for start_transform in query.iter() {
     commands.spawn((
+      Hurtable,
+      PhysicsBody,
       Player{ 
         shield_active: false, 
         cargo_scan_timer: Timer::from_seconds(0.2, TimerMode::Repeating),

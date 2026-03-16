@@ -1,7 +1,7 @@
 use avian3d::prelude::*;
 use bevy::{gltf::GltfMesh, prelude::*};
 
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState,  get_gltf_primative, physics::GameLayer};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::{GameLayer, PhysicsBody}, game_state::GameState, get_gltf_primative};
 
 
 pub struct CargoPlugin;
@@ -74,6 +74,7 @@ fn spawn_cargo(
     info!("Spawning cargo at {}", transform.translation);
     commands.spawn((
       CargoItem,
+      PhysicsBody,
       Mesh3d(cargo_resources.crate_mesh.clone()),
       MeshMaterial3d(cargo_resources.crate_material.clone()),
       CollisionLayers::new([GameLayer::Cargo, GameLayer::Default], [GameLayer::Default]),

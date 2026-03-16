@@ -1,7 +1,7 @@
 use avian3d::prelude::{Forces, PhysicsSystems, RigidBodyForces, SpatialQuery, SpatialQueryFilter};
 use bevy::{prelude::*, render::render_resource::encase::private::Length};
 
-use crate::{effect_sprite::EffectSpriteMessage, game_schedule::GameSchedule, health::Damage};
+use crate::{effect_sprite::EffectSpriteMessage, game_physics::{ImpactEvent, PhysicsBody}, game_schedule::GameSchedule, health::{DamageEvent, Health, Hurtable}};
 
 const BULLET_COLOUR: LinearRgba = LinearRgba::new(2., 1.8, 0.2, 1.0);
 
@@ -29,17 +29,19 @@ pub struct Bullet{
   speed:f32,
   time_to_live:Timer,
   owner:Entity,
+  damage:f32,
 }
 
 impl Bullet{
-  pub fn from_vector(vec:Vec3, owner:Entity, time_to_live_seconds:f32) -> Self{
+  pub fn from_vector(vec:Vec3, owner:Entity, time_to_live_seconds:f32, damage:f32) -> Self{
     let direction = Dir3::new(vec).unwrap_or(Dir3::NEG_Z);
     let speed = vec.length().max(0.001);
     Self{ 
       direction, 
       speed, 
       time_to_live: Timer::from_seconds(time_to_live_seconds,TimerMode::Once), 
-      owner 
+      owner, 
+      damage,
     }
   }
 }
@@ -47,7 +49,7 @@ impl Bullet{
 
 fn update_bullets(
   query:Query<(&mut Bullet, &mut Transform, Entity)>,
-  mut forces_query:Query<Forces>,
+  target_query:Query<(Option<&Hurtable>,Option<&PhysicsBody>)>,
   time:Res<Time>,
   spatial_query:SpatialQuery,
   mut commands:Commands,
@@ -63,18 +65,21 @@ fn update_bullets(
     if let Some(hit) = spatial_query.cast_ray(transform.translation, bullet.direction, 
       distance, false, &SpatialQueryFilter::from_excluded_entities([bullet.owner])){
 
-      if let Ok(mut forces) = forces_query.get_mut(hit.entity){
-        let hit_location = transform.translation + (bullet.direction * hit.distance);
-        forces.apply_linear_impulse_at_point(bullet.direction * bullet.speed, hit_location)
+      let collision_location = transform.translation + (bullet.direction * hit.distance);
 
+      if let Ok((hurtable, physics)) = target_query.get(hit.entity){
+        if hurtable.is_some(){
+          commands.trigger(DamageEvent{ target: hit.entity, value: bullet.damage });
+        }
+        if physics.is_some(){
+          commands.trigger(ImpactEvent{ target: hit.entity, location: collision_location, force:bullet.direction * bullet.speed });
+        }
       }
-
-      commands.trigger(Damage{ entity: hit.entity, value: 10. });
-
+      //bullet impact effect
       effect_writer.write(
         EffectSpriteMessage::new(
           "splosion".to_string(), 
-          transform.translation + (bullet.direction * hit.distance),
+          collision_location,
           8.,
           Vec3::ZERO
         ));  

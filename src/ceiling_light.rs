@@ -1,7 +1,10 @@
-use avian3d::prelude::*;
-use bevy::{asset::LoadState, gltf::GltfMesh, light::NotShadowCaster, math::VectorSpace, prelude::*};
+use std::f32::consts::PI;
 
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative, health::Health};
+use avian3d::prelude::*;
+use bevy::{asset::LoadState, gltf::GltfMesh, light::{NotShadowCaster, NotShadowReceiver}, math::VectorSpace, prelude::*};
+
+
+use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::EffectSpriteMessage, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::{Dead, Health, Hurtable}};
 pub struct CeilingLightPlugin;
 
 impl Plugin for CeilingLightPlugin{
@@ -11,7 +14,8 @@ impl Plugin for CeilingLightPlugin{
         ..default()
       })
       .add_systems(OnEnter(AssetLoadState::Loaded), init_light_resources)
-      .add_systems(OnEnter(GameState::Initialize), spawn_ceiling_lights);
+      .add_systems(OnEnter(GameState::Initialize), spawn_ceiling_lights)
+      .add_systems(Update, handle_death.in_set(GameSchedule::EntityUpdates));
   }
 }
 
@@ -21,7 +25,8 @@ impl Plugin for CeilingLightPlugin{
 #[type_path = "api"]
 struct CeilingLightSpawn;
 
-
+#[derive(Component)]
+struct CeilingLight;
 
 #[derive(Resource, Default)]
 struct CeilingLightResources{
@@ -62,24 +67,65 @@ fn spawn_ceiling_lights(
 ){
   for transform in query{
     info!("Spawning ceiling light");
+
+    let spotlight = SpotLight {
+      intensity: 8_000_000.0, // lumens
+      color: Color::WHITE,
+      shadows_enabled: false,
+      inner_angle: PI / 8.0,
+      outer_angle: PI / 4.0,
+      range:100.0,
+      ..default()
+    };
+
     commands.spawn((
+      CeilingLight,
       Mesh3d(resources.frame.clone()),
       MeshMaterial3d(resources.frame_material.clone()),
       transform.clone().with_scale(Vec3::splat(1.)),
       NotShadowCaster,
+      NotShadowReceiver,
       resources.collider.clone().unwrap(),
       RigidBody::Static,
-      Health{ health:100.,},
+      Health{ health:20.,},
+      Hurtable,
       children![
         (
           NotShadowCaster,
+          NotShadowReceiver,
           Mesh3d(resources.light.clone()),
           MeshMaterial3d(resources.light_material.clone()),
           Transform::from_translation(Vec3::ZERO)
+        ),
+        (
+          spotlight,
+          Transform::from_translation(Vec3::new(0.,-2.6,0.)).looking_to(-Dir3::Y, Dir3::Z)
+        ),
+        (
+          spotlight,
+          Transform::from_translation(Vec3::new(-4.9,-2.6,0.)).looking_to(-Dir3::Y, Dir3::Z)
+        ),
+        (
+          spotlight,
+          Transform::from_translation(Vec3::new(4.9,-2.6,0.)).looking_to(-Dir3::Y, Dir3::Z)
         )
+
+
       ]
     ));
 
 
   }
+}
+
+
+fn handle_death(
+  query:Query<&GlobalTransform, (With<CeilingLight>, With<Dead>)>,
+  mut effect_writer:MessageWriter<EffectSpriteMessage>,
+){
+  for transform in query{
+    effect_writer.write(EffectSpriteMessage::new("splosion".to_string(), transform.translation().clone(), 20., Vec3::ZERO));
+
+  }
+
 }
