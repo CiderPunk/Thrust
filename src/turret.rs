@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
+use avian3d::prelude::Collider;
 use bevy::{gltf::GltfMesh, math::FloatPow, prelude::*};
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative, player::Player};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative, health::{Health, Hurtable}, player::Player};
 
 
 
@@ -40,6 +41,8 @@ struct TurretResources{
   tower_mesh:Handle<Mesh>,
   gimble_mesh:Handle<Mesh>,
   gun_mesh:Handle<Mesh>,
+  base_collider:Option<Collider>,
+  tower_collider:Option<Collider>
 }
 
 #[derive(Component, Default, Reflect, Debug)]
@@ -88,7 +91,7 @@ fn init_turret_resources(
   game_assets: Res<GameAssets>,
   gltf_assets: Res<Assets<Gltf>>,
   gltf_meshes: Res<Assets<GltfMesh>>,
-  //mut meshes: ResMut<Assets<Mesh>>,
+  mut meshes: ResMut<Assets<Mesh>>,
 ) -> Result<()> {
   info!("Init turret resources");
   let models = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
@@ -98,12 +101,23 @@ fn init_turret_resources(
   let gimble = get_gltf_primative!(gltf_meshes, models,"turret-gimble" );
   let gun = get_gltf_primative!(gltf_meshes, models,"turret-gun" );
 
+
+  let base_collider =  get_gltf_primative!(gltf_meshes, models,"turret-base-collision" );
+  let base_collider_mesh = meshes.get(&base_collider.mesh).clone().ok_or("Couldn't get collision mesh")?;
+
+  let tower_collider =  get_gltf_primative!(gltf_meshes, models,"turret-tower-collision" );
+  let tower_collider_mesh = meshes.get(&tower_collider.mesh).clone().ok_or("Couldn't get collision mesh")?;
+
   turret_resources.turret_material = base.material.clone().ok_or("no flame material")?;
 
   turret_resources.base_mesh = base.mesh.clone();
   turret_resources.gimble_mesh = gimble.mesh.clone();
   turret_resources.tower_mesh = tower.mesh.clone();
   turret_resources.gun_mesh = gun.mesh.clone();
+
+  turret_resources.base_collider =  Some(Collider::convex_hull_from_mesh(base_collider_mesh).ok_or("couldn't create collider from mesh")?);
+  turret_resources.tower_collider =  Some(Collider::convex_hull_from_mesh(tower_collider_mesh).ok_or("couldn't create collider from mesh")?);
+
   Ok(())
 }
 
@@ -123,12 +137,16 @@ fn spawn_turrets(
       Mesh3d(turret_resources.base_mesh.clone()),
       MeshMaterial3d(turret_resources.turret_material.clone()),
       start_transform.clone().with_scale(Vec3::splat(1.)),
+      turret_resources.base_collider.clone().unwrap(),
+      Health{ health:20. },
       children![
         (
           TurretTower,
           Mesh3d(turret_resources.tower_mesh.clone()),
           MeshMaterial3d(turret_resources.turret_material.clone()),
           Transform::from_translation(Vec3::new(0.,2.,0.)),
+          turret_resources.tower_collider.clone().unwrap(),
+          Hurtable,
           children![
             (
               TurretGimble,
