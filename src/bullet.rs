@@ -1,7 +1,7 @@
 use avian3d::prelude::{Forces, PhysicsSystems, RigidBodyForces, SpatialQuery, SpatialQueryFilter};
 use bevy::{prelude::*, render::render_resource::encase::private::Length};
 
-use crate::{effect_sprite::EffectSpriteMessage, game_schedule::GameSchedule};
+use crate::{effect_sprite::EffectSpriteMessage, game_schedule::GameSchedule, health::Damage};
 
 const BULLET_COLOUR: LinearRgba = LinearRgba::new(2., 1.8, 0.2, 1.0);
 
@@ -68,6 +68,8 @@ fn update_bullets(
         forces.apply_linear_impulse_at_point(bullet.direction * bullet.speed, hit_location)
 
       }
+
+      commands.trigger(Damage{ entity: hit.entity, value: 10. });
 
       effect_writer.write(
         EffectSpriteMessage::new(

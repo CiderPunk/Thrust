@@ -1,7 +1,7 @@
-use avian3d::prelude::Collider;
+use avian3d::prelude::*;
 use bevy::{asset::LoadState, gltf::GltfMesh, light::NotShadowCaster, math::VectorSpace, prelude::*};
 
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_state::GameState, get_gltf_primative, health::Health};
 pub struct CeilingLightPlugin;
 
 impl Plugin for CeilingLightPlugin{
@@ -67,6 +67,9 @@ fn spawn_ceiling_lights(
       MeshMaterial3d(resources.frame_material.clone()),
       transform.clone().with_scale(Vec3::splat(1.)),
       NotShadowCaster,
+      resources.collider.clone().unwrap(),
+      RigidBody::Static,
+      Health{ health:100.,},
       children![
         (
           NotShadowCaster,
@@ -74,7 +77,6 @@ fn spawn_ceiling_lights(
           MeshMaterial3d(resources.light_material.clone()),
           Transform::from_translation(Vec3::ZERO)
         )
-
       ]
     ));
 
