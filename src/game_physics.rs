@@ -35,6 +35,7 @@ pub enum GameLayer{
   #[default]
   Default,
   Player,
+  Enemy,
   Cargo,
   Bullets,
 }
