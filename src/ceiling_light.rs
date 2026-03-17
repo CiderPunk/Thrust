@@ -109,8 +109,6 @@ fn spawn_ceiling_lights(
           spotlight,
           Transform::from_translation(Vec3::new(4.9,-2.6,0.)).looking_to(-Dir3::Y, Dir3::Z)
         )
-
-
       ]
     ));
 
