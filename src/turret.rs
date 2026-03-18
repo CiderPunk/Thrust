@@ -8,10 +8,9 @@ use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::GameLa
 const TURRET_ACTIVATION_RANGE:f32 = 60.;
 const TURRET_SEARCH_TIMER:f32 = 5.;
 const DEPLOY_TIME: f32 = 0.5;
-
-const TURRET_DEPLOY_HEIGHT:f32 = 7.2;
-
-
+const TURRET_DEPLOY_HEIGHT:f32 = 6.2;
+const TURRET_GIMBLE_TRACK_FACTOR: f32 = 2.5;
+const TURRET_TOWER_TRACK_FACTOR:f32 = 5.;
 
 pub struct TurretPlugin;
 
@@ -68,6 +67,18 @@ struct TurretGimble;
 #[derive(Component, Default)]
 struct TurretGun;
 
+
+
+#[derive(Component)]
+#[relationship(relationship_target = TurretComponents)]
+struct TurretComponent(pub Entity);
+
+
+#[derive(Component)]
+#[relationship_target(relationship = TurretComponent, linked_spawn)]
+struct TurretComponents(Vec<Entity>);
+
+
 #[derive(Component)]
 struct Tracking{
   target:Entity,
@@ -88,6 +99,7 @@ struct Deploy{
 #[derive(Component, Default)]
 struct Retract{
   timer:Timer,
+  gimble_stowed:bool,
 }
 
 
@@ -127,16 +139,6 @@ fn init_turret_resources(
 }
 
 
-#[derive(Component)]
-#[relationship(relationship_target = TurretComponents)]
-struct TurretComponent(pub Entity);
-
-
-#[derive(Component)]
-#[relationship_target(relationship = TurretComponent, linked_spawn)]
-struct TurretComponents(Vec<Entity>);
-
-
 
 
 fn spawn_turrets(
@@ -166,7 +168,7 @@ fn spawn_turrets(
       TurretComponent(turret),
       Mesh3d(turret_resources.tower_mesh.clone()),
       MeshMaterial3d(turret_resources.turret_material.clone()),
-      Transform::from_translation(Vec3::new(0.,2.,0.)),
+      Transform::from_translation(Vec3::new(0.,0.,0.)),
       turret_resources.tower_collider.clone().unwrap(),
       CollisionLayers::new([GameLayer::Enemy, GameLayer::Default], [GameLayer::Default]),
       RigidBody::Static,
@@ -195,7 +197,7 @@ fn spawn_turrets(
 
 
 fn check_target_proximity(
-  turret_query:Query<(Entity, &GlobalTransform, Option<&Searching>), (With<Turret>, Without<Tracking>)>,
+  turret_query:Query<(Entity, &GlobalTransform, Option<&Searching>), (With<Turret>, Without<Tracking>,  Without<Retract>)>,
   target_query: Query<(Entity, &GlobalTransform), With<Player>>,
   mut commands:Commands,
 ){
@@ -203,9 +205,10 @@ fn check_target_proximity(
     for (player, player_transform) in target_query{
       if (turret_transform.translation() - player_transform.translation()).length_squared() < TURRET_ACTIVATION_RANGE.squared(){
         let mut turret = commands.entity(turret);
-        turret.insert(
-          Tracking{ target: player },
-        );
+        turret
+          .insert(Tracking{ target: player })
+          .remove::<Searching>();
+
         if searching.is_none(){          
           turret.insert(
             Deploy{ timer:Timer::from_seconds(DEPLOY_TIME, TimerMode::Once )}
@@ -228,24 +231,43 @@ fn search_timer(
     if searcher.search_timer.is_finished(){
       commands.entity(entity)
         .remove::<Searching>()
-        .insert(Retract{ timer:Timer::from_seconds(DEPLOY_TIME, TimerMode::Once)});
+        .insert(Retract{ timer:Timer::from_seconds(DEPLOY_TIME, TimerMode::Once), gimble_stowed:false });
     }
   }
 }
 
 fn deploy_turret(
-  query:Query<(&mut Deploy,  Entity, &Children)>,
-  mut tower_query:Query<&mut Transform, With<TurretTower>>,
+  query:Query<(&mut Deploy, &GlobalTransform, Entity, &TurretComponents, Option<&Tracking>), With<Turret>>,
+  target_query:Query<&GlobalTransform>,
+  mut tower_query:Query<&mut Transform, (With<TurretTower>,  Without<Turret>)>,
   time:Res<Time>,
   mut commands:Commands,
 ){
-  for (mut deploy, entity, children) in query{
+  for (mut deploy, turret_transform, entity, components, tracking) in query{
     deploy.timer.tick(time.delta());
-    for child in children{
-      if let Ok(mut transform) = tower_query.get_mut(*child){
+    let tower_angle = match(tracking){
+      Some(tracking) => {
+        match target_query.get(tracking.target){
+          Ok(target_transform) => {
+            let target_vector = turret_transform.translation() - target_transform.translation();
+            if target_vector.dot(turret_transform.left().into()) < 0.{  
+              PI * 0.5 
+            } else{ 
+              -PI * 0.5 
+            }
+          },
+          Err(_) => 0.,
+        }
+      },
+      None => 0.,
+    };
+
+
+    for component in &components.0{
+      if let Ok(mut transform) = tower_query.get_mut(*component){
         let fraction = deploy.timer.fraction();
         transform.translation.y = fraction * TURRET_DEPLOY_HEIGHT;
-        transform.rotation = Quat::from_axis_angle(Vec3::Y, -0.5 * PI *fraction );
+        transform.rotation = transform.rotation.slerp( Quat::from_axis_angle(Vec3::Y, tower_angle), time.delta_secs() * TURRET_TOWER_TRACK_FACTOR);
       }
     }
     if deploy.timer.is_finished(){
@@ -255,20 +277,33 @@ fn deploy_turret(
 }
 
 fn retract_turret(
-  query:Query<(&mut Retract,  Entity, &Children)>,
-  mut tower_query:Query<&mut Transform, With<TurretTower>>,
+  query:Query<(&mut Retract,  Entity, &TurretComponents)>,
+  mut gimble_query:Query<&mut Transform, (With<TurretGimble>,  Without<TurretTower>, Without<Turret>)>,
+  mut tower_query:Query<&mut Transform, (With<TurretTower>, Without<TurretGimble>, Without<Turret>)>,
   time:Res<Time>,
   mut commands:Commands,
 ){
-  for (mut deploy, entity, children) in query{
-    deploy.timer.tick(time.delta());
-    for child in children{
-      if let Ok(mut transform) = tower_query.get_mut(*child){
-        let fraction = deploy.timer.fraction();
-        transform.translation.y = (1.-fraction) * TURRET_DEPLOY_HEIGHT;
-        transform.rotation = Quat::from_axis_angle(Vec3::Y, -0.5 * PI *fraction );
+  for (mut deploy, entity, components) in query{
+    if !deploy.gimble_stowed{
+      for &component in &components.0 {
+        if let Ok(mut transform) = gimble_query.get_mut(component) { 
+          let target = Quat::from_axis_angle(Vec3::X, 0.);
+          transform.rotation = transform.rotation.rotate_towards(target, time.delta_secs() * TURRET_GIMBLE_TRACK_FACTOR); 
+
+          let diff = transform.rotation.angle_between(target);
+          if diff < 0.01{
+            deploy.gimble_stowed = true;  
+          }
+        }
       }
+      continue;
     }
+    deploy.timer.tick(time.delta());
+    for &component in &components.0 {
+      if let Ok(mut transform) = tower_query.get_mut(component) {
+        transform.translation.y = (1.-deploy.timer.fraction()) * TURRET_DEPLOY_HEIGHT;
+      }
+    } 
     if deploy.timer.is_finished(){
       commands.entity(entity).remove::<Retract>();
     }
@@ -277,12 +312,14 @@ fn retract_turret(
 
 
 
+
 fn track_target(
-  turret_query:Query<(Entity, &GlobalTransform, &Tracking, &TurretComponents), (With<Turret>, With<Tracking>, Without<Deploy>)>,
-  //mut tower_query:Query<&mut Transform, With<TurretTower>>,
-  mut gimble_query:Query<&mut Transform, With<TurretGimble>>,
+  turret_query:Query<(Entity, &GlobalTransform, &Tracking, &TurretComponents), (With<Turret>, With<Tracking>, Without<Deploy>, Without<Retract>)>,
+  mut tower_query:Query<&mut Transform, (With<TurretTower>, Without<TurretGimble>, Without<Turret>)>,
+  mut gimble_query:Query<&mut Transform, (With<TurretGimble>,  Without<TurretTower>, Without<Turret>)>,
   target_query: Query<&GlobalTransform>,
   mut commands:Commands,
+  time:Res<Time>
 ){
  for (turret, turret_transform, tracking, components) in turret_query{
     if let Ok(target_transform) = target_query.get(tracking.target){
@@ -298,19 +335,18 @@ fn track_target(
         continue;
       }
       
-      let mut angle = target_vector.angle_between(turret_transform.up().into());
-      if target_vector.dot(turret_transform.left().into()) < 0.{
-        angle *= -1.;
-      }
+      let gimble_angle = target_vector.angle_between(turret_transform.up().into());
+      let tower_angle = if target_vector.dot(turret_transform.left().into()) < 0.{  PI * 0.5 } else{ -PI * 0.5 };
 
       for &component in &components.0 {
-        if let Ok(mut tansform) = gimble_query.get_mut(component) {
-          tansform.rotation = Quat::from_axis_angle(Vec3::X, angle);
+        if let Ok(mut transform) = gimble_query.get_mut(component) {
+          transform.rotation = transform.rotation.rotate_towards(Quat::from_axis_angle(Vec3::X, gimble_angle), time.delta_secs() * TURRET_GIMBLE_TRACK_FACTOR);
         }
-      }
+        if let Ok(mut transform) = tower_query.get_mut(component) {
+          transform.rotation = transform.rotation.rotate_towards(Quat::from_axis_angle(Vec3::Y, tower_angle), time.delta_secs() * TURRET_TOWER_TRACK_FACTOR);
+        }
+      } 
       //info!("Tracking angle {}", angle);
     }
   }
-
-
 }
