@@ -212,7 +212,7 @@ fn spawn_player(
           Visibility::Hidden,
           Mesh3d(player_resources.shield_mesh.clone()),
           MeshMaterial3d(shader_materials.shield.clone()),
-          Transform::from_scale(Vec3::splat(6.))
+          Transform::from_scale(Vec3::splat(6.)),
         )
       ],
     ));
