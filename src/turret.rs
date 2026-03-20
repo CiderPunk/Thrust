@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 use avian3d::{physics_transform::transform_to_position, prelude::*};
 use bevy::{gltf::GltfMesh, math::FloatPow, prelude::*};
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::GameLayer, game_state::GameState, get_gltf_primative, health::{Health, Hurtable}, player::Player};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::GameLayer, game_state::GameState, get_gltf_primative, health::{Health, Hurtable}, player::Player, weapons::{AttachedWeapon, ProjectileGun, Weapon, WeaponAttachments}};
 
 
 
@@ -108,7 +108,7 @@ fn init_turret_resources(
   game_assets: Res<GameAssets>,
   gltf_assets: Res<Assets<Gltf>>,
   gltf_meshes: Res<Assets<GltfMesh>>,
-  mut meshes: ResMut<Assets<Mesh>>,
+  meshes: Res<Assets<Mesh>>,
 ) -> Result<()> {
   info!("Init turret resources");
   let models = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
@@ -158,7 +158,7 @@ fn spawn_turrets(
       turret_resources.base_collider.clone().unwrap(),
       CollisionLayers::new([GameLayer::Enemy, GameLayer::Default], [GameLayer::Default]),
       RigidBody::Static,
-      Health{ health:20. },
+      Health{ health:100. },
     )).id();
 
 
@@ -191,6 +191,16 @@ fn spawn_turrets(
       Mesh3d (turret_resources.gun_mesh.clone()),
       MeshMaterial3d(turret_resources.turret_material.clone()),
       Transform::from_translation(Vec3::new(0.,0.,0.)),
+      children![
+        (
+          AttachedWeapon(turret),
+          Weapon{
+            ..Default::default()
+          },
+          ProjectileGun::new(1.2, 1.2),
+          Transform::from_translation(Vec3::new(0.,-4.,0.)).with_rotation(Quat::from_rotation_z(PI)),
+        )
+      ]
     ));
   }
 }
@@ -237,13 +247,14 @@ fn search_timer(
 }
 
 fn deploy_turret(
-  query:Query<(&mut Deploy, &GlobalTransform, Entity, &TurretComponents, Option<&Tracking>), With<Turret>>,
+  query:Query<(&mut Deploy, &GlobalTransform, Entity, &TurretComponents, Option<&Tracking>, &WeaponAttachments), With<Turret>>,
   target_query:Query<&GlobalTransform>,
+  mut weapon_query:Query<&mut Weapon>,
   mut tower_query:Query<&mut Transform, (With<TurretTower>,  Without<Turret>)>,
   time:Res<Time>,
   mut commands:Commands,
 ){
-  for (mut deploy, turret_transform, entity, components, tracking) in query{
+  for (mut deploy, turret_transform, entity, components, tracking, weapons) in query{
     deploy.timer.tick(time.delta());
     let tower_angle = match(tracking){
       Some(tracking) => {
@@ -272,6 +283,12 @@ fn deploy_turret(
     }
     if deploy.timer.is_finished(){
       commands.entity(entity).remove::<Deploy>();
+      for weapon in weapons.iter(){
+        if let Ok(mut weapon) = weapon_query.get_mut(weapon){
+          weapon.trigger_active = true;
+        }
+
+      }
     }
   }
 }
@@ -314,14 +331,15 @@ fn retract_turret(
 
 
 fn track_target(
-  turret_query:Query<(Entity, &GlobalTransform, &Tracking, &TurretComponents), (With<Turret>, With<Tracking>, Without<Deploy>, Without<Retract>)>,
+  turret_query:Query<(Entity, &GlobalTransform, &Tracking, &TurretComponents, &WeaponAttachments), (With<Turret>, With<Tracking>, Without<Deploy>, Without<Retract>)>,
   mut tower_query:Query<&mut Transform, (With<TurretTower>, Without<TurretGimble>, Without<Turret>)>,
   mut gimble_query:Query<&mut Transform, (With<TurretGimble>,  Without<TurretTower>, Without<Turret>)>,
   target_query: Query<&GlobalTransform>,
   mut commands:Commands,
-  time:Res<Time>
+  time:Res<Time>,
+  mut weapon_query:Query<&mut Weapon>,
 ){
- for (turret, turret_transform, tracking, components) in turret_query{
+ for (turret, turret_transform, tracking, components, weapons) in turret_query{
     if let Ok(target_transform) = target_query.get(tracking.target){
       let gun_translation = turret_transform.translation() + (turret_transform.up() * 5.2);
       let target_vector = gun_translation - target_transform.translation();
@@ -332,6 +350,12 @@ fn track_target(
           .insert( 
             Searching{ search_timer: Timer::from_seconds(TURRET_SEARCH_TIMER, TimerMode::Once) }
           );
+
+          for weapon in weapons.iter(){
+            if let Ok(mut weapon) = weapon_query.get_mut(weapon){
+              weapon.trigger_active = false;
+            }
+          }
         continue;
       }
       
@@ -350,3 +374,6 @@ fn track_target(
     }
   }
 }
+
+
+

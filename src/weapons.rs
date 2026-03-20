@@ -1,7 +1,7 @@
-use avian3d::prelude::{Forces, LinearVelocity, RigidBodyForces};
+use avian3d::prelude::{Forces, RigidBodyForces};
 use bevy::{light::NotShadowCaster, math::VectorSpace, prelude::*};
 
-use crate::{bullet::{Bullet, BulletResources}, effect_sprite::EffectSpriteMessage};
+use crate::bullet::{Bullet, BulletResources};
 
 pub struct WeaponsPlugin;
 impl Plugin for WeaponsPlugin{
@@ -10,8 +10,6 @@ impl Plugin for WeaponsPlugin{
   }
 }
 
-
-
 #[derive(Component, Default)]
 pub struct Weapon{
   pub trigger_active:bool,
@@ -19,6 +17,7 @@ pub struct Weapon{
 
 #[derive(Component)]
 pub struct ProjectileGun{
+  offset:Vec3,
   pub firing:bool,
   fire_delay:Timer,
   cool_down:Timer,
@@ -30,9 +29,31 @@ impl ProjectileGun{
       firing:false,  
       fire_delay:Timer::from_seconds(fire_delay, TimerMode::Repeating),
       cool_down:Timer::from_seconds(cool_down,TimerMode::Once), 
+      offset: Vec3::ZERO,
     }
   }
+
+  #[inline]
+  #[must_use]
+  pub const fn with_offset(mut self, offset: Vec3) -> Self {
+      self.offset = offset;
+      self
+  }
 }
+
+
+#[derive(Component)]
+#[relationship(relationship_target = WeaponAttachments)]
+pub struct AttachedWeapon(pub Entity);
+
+
+#[derive(Component)]
+#[relationship_target(relationship = AttachedWeapon, linked_spawn)]
+pub struct WeaponAttachments(Vec<Entity>);
+
+
+
+
 
 
 fn update_projectile_gun(
@@ -65,7 +86,7 @@ fn update_projectile_gun(
       };
       commands.spawn((
         NotShadowCaster,
-        Transform::from_translation(transform.translation()),
+        Transform::from_translation(transform.translation() + gun.offset),
         Bullet::from_vector(velocity, child_of.0, 1.,10.),
         Mesh3d(bullet_resources.bullet_mesh.clone()),
         MeshMaterial3d(bullet_resources.bullet_material.clone()),
