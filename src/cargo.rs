@@ -77,7 +77,7 @@ fn spawn_cargo(
       PhysicsBody,
       Mesh3d(cargo_resources.crate_mesh.clone()),
       MeshMaterial3d(cargo_resources.crate_material.clone()),
-      CollisionLayers::new([GameLayer::Cargo], [GameLayer::Default, GameLayer::Player]),
+      CollisionLayers::new([GameLayer::Cargo], [GameLayer::Default, GameLayer::Player, GameLayer::Enemy, GameLayer::Cargo]),
        ColliderDensity(0.1),
       Transform::from_translation(transform.translation).with_scale(Vec3::splat(1.6)),
       RigidBody::Dynamic,

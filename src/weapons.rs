@@ -91,13 +91,18 @@ fn update_projectile_gun(
     if gun.fire_delay.is_finished(){ 
 
       let mut velocity = transform.up() * 80.;
+      velocity.z = 0.;
       if let Ok(mut forces) = parent_force_query.get_mut(child_of.0){
         forces.apply_linear_impulse(transform.up() * -20.);
         velocity += forces.linear_velocity();
       };
+
+      
+
       commands.spawn((
         NotShadowCaster,
         //Transform::from_translation(transform.translation() + gun.offset.y * transform.up() + gun.offset.x * transform.left()),
+        //Transform::from_xyz(transform.translation().x, transform.translation().y, 0.),
         Transform::from_translation(transform.translation()),
         Bullet::from_vector(velocity, child_of.0, 1.,10., gun.filter.clone() ),
         Mesh3d(bullet_resources.bullet_mesh.clone()),

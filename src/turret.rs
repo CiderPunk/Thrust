@@ -170,7 +170,7 @@ fn spawn_turrets(
       MeshMaterial3d(turret_resources.turret_material.clone()),
       Transform::from_translation(Vec3::new(0.,0.,0.)),
       turret_resources.tower_collider.clone().unwrap(),
-      CollisionLayers::new([GameLayer::Enemy], [GameLayer::Default]),
+      CollisionLayers::new([GameLayer::Enemy], [GameLayer::Cargo, GameLayer::Player]),
       RigidBody::Static,
       Hurtable,
     )).id();
@@ -197,7 +197,7 @@ fn spawn_turrets(
           ..Default::default()
         },
         ProjectileGun::new(1.2, 1.2, SpatialQueryFilter::from_mask( GameLayer::Player.to_bits() | GameLayer::Cargo.to_bits() | GameLayer::Default.to_bits())),
-        Transform::from_translation(Vec3::ZERO).with_rotation(Quat::from_axis_angle(Vec3::X, PI)),
+        Transform::from_translation(Vec3::new(0.,-4.45,0.5)).with_rotation(Quat::from_axis_angle(Vec3::X, PI)),
         AttachedWeapon(turret),
       )],
     ));
@@ -356,6 +356,11 @@ fn track_target(
           .insert( 
             Searching{ search_timer: Timer::from_seconds(TURRET_SEARCH_TIMER, TimerMode::Once) }
           );
+          for weapon in weapons.into_iter(){
+            if let Ok(mut weapon)= weapon_query.get_mut(*weapon){
+              weapon.trigger_active = false;
+            }
+          }
         continue;
       }
       
