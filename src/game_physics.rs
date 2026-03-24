@@ -30,14 +30,14 @@ pub struct ImpactEvent {
 
 
 
-#[derive(PhysicsLayer, Default)]
+#[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
 pub enum GameLayer{
   #[default]
   Default,
   Player,
   Enemy,
   Cargo,
-  Bullets,
+  Bullet,
 }
 
 

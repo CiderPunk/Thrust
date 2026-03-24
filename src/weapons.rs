@@ -1,7 +1,9 @@
-use avian3d::prelude::{Forces, RigidBodyForces};
+use core::slice;
+
+use avian3d::prelude::{Forces, RigidBodyForces, SpatialQueryFilter};
 use bevy::{light::NotShadowCaster, math::VectorSpace, prelude::*};
 
-use crate::bullet::{Bullet, BulletResources};
+use crate::{bullet::{Bullet, BulletResources}, game_physics::GameLayer};
 
 pub struct WeaponsPlugin;
 impl Plugin for WeaponsPlugin{
@@ -21,15 +23,17 @@ pub struct ProjectileGun{
   pub firing:bool,
   fire_delay:Timer,
   cool_down:Timer,
+  filter:SpatialQueryFilter,
 }
 
 impl ProjectileGun{
-  pub fn new(fire_delay:f32, cool_down:f32)->Self{
+  pub fn new(fire_delay:f32, cool_down:f32, filter:SpatialQueryFilter)->Self{
     Self{ 
       firing:false,  
       fire_delay:Timer::from_seconds(fire_delay, TimerMode::Repeating),
       cool_down:Timer::from_seconds(cool_down,TimerMode::Once), 
       offset: Vec3::ZERO,
+      filter:filter,
     }
   }
 
@@ -41,18 +45,25 @@ impl ProjectileGun{
   }
 }
 
-
-#[derive(Component)]
+#[derive(Component, Debug, PartialEq, Eq)]
 #[relationship(relationship_target = WeaponAttachments)]
 pub struct AttachedWeapon(pub Entity);
 
-
-#[derive(Component)]
+#[derive(Component, Default, Debug, PartialEq, Eq)]
 #[relationship_target(relationship = AttachedWeapon, linked_spawn)]
 pub struct WeaponAttachments(Vec<Entity>);
 
 
+impl<'a> IntoIterator for &'a WeaponAttachments {
+    type Item = <Self::IntoIter as Iterator>::Item;
 
+    type IntoIter = slice::Iter<'a, Entity>;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
 
 
 
@@ -86,8 +97,9 @@ fn update_projectile_gun(
       };
       commands.spawn((
         NotShadowCaster,
-        Transform::from_translation(transform.translation() + gun.offset),
-        Bullet::from_vector(velocity, child_of.0, 1.,10.),
+        //Transform::from_translation(transform.translation() + gun.offset.y * transform.up() + gun.offset.x * transform.left()),
+        Transform::from_translation(transform.translation()),
+        Bullet::from_vector(velocity, child_of.0, 1.,10., gun.filter.clone() ),
         Mesh3d(bullet_resources.bullet_mesh.clone()),
         MeshMaterial3d(bullet_resources.bullet_material.clone()),
       ));

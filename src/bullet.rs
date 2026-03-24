@@ -30,10 +30,11 @@ pub struct Bullet{
   time_to_live:Timer,
   owner:Entity,
   damage:f32,
+  filter:SpatialQueryFilter,
 }
 
 impl Bullet{
-  pub fn from_vector(vec:Vec3, owner:Entity, time_to_live_seconds:f32, damage:f32) -> Self{
+  pub fn from_vector(vec:Vec3, owner:Entity, time_to_live_seconds:f32, damage:f32, filter:SpatialQueryFilter) -> Self{
     let direction = Dir3::new(vec).unwrap_or(Dir3::NEG_Z);
     let speed = vec.length().max(0.001);
     Self{ 
@@ -42,6 +43,7 @@ impl Bullet{
       time_to_live: Timer::from_seconds(time_to_live_seconds,TimerMode::Once), 
       owner, 
       damage,
+      filter,
     }
   }
 }
@@ -63,7 +65,7 @@ fn update_bullets(
     }
     let distance = bullet.speed * time.delta_secs();
     if let Some(hit) = spatial_query.cast_ray(transform.translation, bullet.direction, 
-      distance, false, &SpatialQueryFilter::from_excluded_entities([bullet.owner])){
+      distance, false, &bullet.filter){
 
       let collision_location = transform.translation + (bullet.direction * hit.distance);
 
