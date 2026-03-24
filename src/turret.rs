@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use avian3d::{physics_transform::transform_to_position, prelude::*};
+use avian3d::prelude::*;
 use bevy::{gltf::GltfMesh, math::FloatPow, prelude::*};
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::GameLayer, game_state::GameState, get_gltf_primative, health::{Health, Hurtable}, player::Player, weapons::{AttachedWeapon, ProjectileGun, Weapon, WeaponAttachments}};
 
@@ -156,7 +156,7 @@ fn spawn_turrets(
       MeshMaterial3d(turret_resources.turret_material.clone()),
       start_transform.clone().with_scale(Vec3::splat(1.)),
       turret_resources.base_collider.clone().unwrap(),
-      CollisionLayers::new([GameLayer::Enemy, GameLayer::Default], [GameLayer::Default]),
+      CollisionLayers::new([GameLayer::Enemy], [GameLayer::Player, GameLayer::Cargo]),
       RigidBody::Static,
       Health{ health:100. },
     )).id();
@@ -170,7 +170,7 @@ fn spawn_turrets(
       MeshMaterial3d(turret_resources.turret_material.clone()),
       Transform::from_translation(Vec3::new(0.,0.,0.)),
       turret_resources.tower_collider.clone().unwrap(),
-      CollisionLayers::new([GameLayer::Enemy, GameLayer::Default], [GameLayer::Default]),
+      CollisionLayers::new([GameLayer::Enemy], [GameLayer::Cargo, GameLayer::Player]),
       RigidBody::Static,
       Hurtable,
     )).id();
@@ -191,16 +191,15 @@ fn spawn_turrets(
       Mesh3d (turret_resources.gun_mesh.clone()),
       MeshMaterial3d(turret_resources.turret_material.clone()),
       Transform::from_translation(Vec3::new(0.,0.,0.)),
-      children![
-        (
-          AttachedWeapon(turret),
-          Weapon{
-            ..Default::default()
-          },
-          ProjectileGun::new(1.2, 1.2),
-          Transform::from_translation(Vec3::new(0.,-4.,0.)).with_rotation(Quat::from_rotation_z(PI)),
-        )
-      ]
+      children![(
+        TurretComponent(turret),
+        Weapon{
+          ..Default::default()
+        },
+        ProjectileGun::new(1.2, 1.2, SpatialQueryFilter::from_mask( GameLayer::Player.to_bits() | GameLayer::Cargo.to_bits() | GameLayer::Default.to_bits())),
+        Transform::from_translation(Vec3::new(0.,-4.45,0.5)).with_rotation(Quat::from_axis_angle(Vec3::X, PI)),
+        AttachedWeapon(turret),
+      )],
     ));
   }
 }
@@ -247,14 +246,13 @@ fn search_timer(
 }
 
 fn deploy_turret(
-  query:Query<(&mut Deploy, &GlobalTransform, Entity, &TurretComponents, Option<&Tracking>, &WeaponAttachments), With<Turret>>,
+  query:Query<(&mut Deploy, &GlobalTransform, &TurretComponents, Option<&Tracking>, Entity), With<Turret>>,
   target_query:Query<&GlobalTransform>,
-  mut weapon_query:Query<&mut Weapon>,
   mut tower_query:Query<&mut Transform, (With<TurretTower>,  Without<Turret>)>,
   time:Res<Time>,
   mut commands:Commands,
 ){
-  for (mut deploy, turret_transform, entity, components, tracking, weapons) in query{
+  for (mut deploy, turret_transform, components, tracking, entity) in query{
     deploy.timer.tick(time.delta());
     let tower_angle = match(tracking){
       Some(tracking) => {
@@ -272,8 +270,6 @@ fn deploy_turret(
       },
       None => 0.,
     };
-
-
     for component in &components.0{
       if let Ok(mut transform) = tower_query.get_mut(*component){
         let fraction = deploy.timer.fraction();
@@ -283,12 +279,6 @@ fn deploy_turret(
     }
     if deploy.timer.is_finished(){
       commands.entity(entity).remove::<Deploy>();
-      for weapon in weapons.iter(){
-        if let Ok(mut weapon) = weapon_query.get_mut(weapon){
-          weapon.trigger_active = true;
-        }
-
-      }
     }
   }
 }
@@ -329,6 +319,22 @@ fn retract_turret(
 
 
 
+/*
+fn enable_weapon(
+  query:Query<(&Transform, &Children), With<TurretGimble>>,
+  mut weapon_query:Query<&mut Weapon>,
+){
+  for (transform, children) in query{
+
+    for child in children{
+      if let Ok(mut weapon) = weapon_query.get_mut(*child){
+        weapon.trigger_active = transform.rotation.angle_between(Quat::from_axis_angle(Vec3::X, 0.)) > 1.0;
+      }
+    }
+  }
+}
+ */
+
 
 fn track_target(
   turret_query:Query<(Entity, &GlobalTransform, &Tracking, &TurretComponents, &WeaponAttachments), (With<Turret>, With<Tracking>, Without<Deploy>, Without<Retract>)>,
@@ -350,18 +356,17 @@ fn track_target(
           .insert( 
             Searching{ search_timer: Timer::from_seconds(TURRET_SEARCH_TIMER, TimerMode::Once) }
           );
-
-          for weapon in weapons.iter(){
-            if let Ok(mut weapon) = weapon_query.get_mut(weapon){
+          for weapon in weapons.into_iter(){
+            if let Ok(mut weapon)= weapon_query.get_mut(*weapon){
               weapon.trigger_active = false;
             }
           }
         continue;
       }
       
+      let is_left = target_vector.dot(turret_transform.left().into()) < 0.;
       let gimble_angle = target_vector.angle_between(turret_transform.up().into());
-      let tower_angle = if target_vector.dot(turret_transform.left().into()) < 0.{  PI * 0.5 } else{ -PI * 0.5 };
-
+      let tower_angle = if is_left {  PI * 0.5 } else{ -PI * 0.5 };
       for &component in &components.0 {
         if let Ok(mut transform) = gimble_query.get_mut(component) {
           transform.rotation = transform.rotation.rotate_towards(Quat::from_axis_angle(Vec3::X, gimble_angle), time.delta_secs() * TURRET_GIMBLE_TRACK_FACTOR);
@@ -370,7 +375,13 @@ fn track_target(
           transform.rotation = transform.rotation.rotate_towards(Quat::from_axis_angle(Vec3::Y, tower_angle), time.delta_secs() * TURRET_TOWER_TRACK_FACTOR);
         }
       } 
-      //info!("Tracking angle {}", angle);
+
+      for weapon in weapons.into_iter(){
+        if let Ok(mut weapon)= weapon_query.get_mut(*weapon){
+          weapon.trigger_active = gimble_angle > 0.8;
+        }
+      }
+
     }
   }
 }

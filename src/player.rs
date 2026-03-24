@@ -1,6 +1,6 @@
 use core::f32;
 
-use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
+use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, PhysicsLayer, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, time::Stopwatch};
 use bevy_enhanced_input::prelude::*;
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::{GameLayer, PhysicsBody}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::Hurtable, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};
@@ -151,7 +151,7 @@ fn spawn_player(
       AngularDamping(20.0),
       TransformInterpolation,
       LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
-      CollisionLayers::new([GameLayer::Player, GameLayer::Default], [GameLayer::Default]),
+      CollisionLayers::new([GameLayer::Player], [GameLayer::Default, GameLayer::Enemy, GameLayer::Bullet, GameLayer::Cargo]),
       player_resources.collider.clone().unwrap(),
       //NotShadowCaster,
       actions!(Player[
@@ -183,10 +183,13 @@ fn spawn_player(
           bindings![KeyCode::Space, GamepadButton::South],
         )
       ]),
-      children![
-        (
+      children![(
           Weapon::default(),
-          ProjectileGun::new(0.5, 0.5),
+          ProjectileGun::new(0.5, 0.5, SpatialQueryFilter::from_mask(
+            GameLayer::Default.to_bits() | 
+            GameLayer::Enemy.to_bits() |
+            GameLayer::Cargo.to_bits()
+          )),
           Transform::from_xyz(0.,0.,0.),
         ),
         (

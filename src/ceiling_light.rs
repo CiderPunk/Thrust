@@ -36,7 +36,7 @@ struct CeilingLightResources{
   light:Handle<Mesh>,
   collider:Option<Collider>,
 }
-
+ 
 
 fn init_light_resources(
   mut light_resources:ResMut<CeilingLightResources>,
