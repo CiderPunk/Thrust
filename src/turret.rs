@@ -1,7 +1,8 @@
+use core::slice;
 use std::f32::consts::PI;
 use avian3d::prelude::*;
-use bevy::{gltf::GltfMesh, math::FloatPow, prelude::*};
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::GameLayer, game_state::GameState, get_gltf_primative, health::{Health, Hurtable}, player::Player, weapons::{AttachedWeapon, ProjectileGun, Weapon, WeaponAttachments}};
+use bevy::{ecs::relationship::DescendantIter, gltf::GltfMesh, math::{FloatPow, VectorSpace}, prelude::*};
+use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::{EFFECT_TYPE_SPLOSION, EffectSpriteMessage}, game_physics::GameLayer, game_state::GameState, get_gltf_primative, health::{Dead, Health, Hurtable}, player::Player, weapons::{AttachedWeapon, ProjectileGun, Weapon, WeaponAttachments}, wreckage::WreckResources};
 
 
 
@@ -31,9 +32,6 @@ impl Plugin for TurretPlugin{
       ));
   }
 }
-
-
-
 
 
 #[derive(Resource, Default)]
@@ -74,9 +72,20 @@ struct TurretGun;
 struct TurretComponent(pub Entity);
 
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 #[relationship_target(relationship = TurretComponent, linked_spawn)]
 struct TurretComponents(Vec<Entity>);
+
+impl<'a> IntoIterator for &'a TurretComponents {
+    type Item = <Self::IntoIter as Iterator>::Item;
+
+    type IntoIter = slice::Iter<'a, Entity>;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
 
 
 #[derive(Component)]
@@ -158,9 +167,8 @@ fn spawn_turrets(
       turret_resources.base_collider.clone().unwrap(),
       CollisionLayers::new([GameLayer::Enemy], [GameLayer::Player, GameLayer::Cargo]),
       RigidBody::Static,
-      Health{ health:100. },
-    )).id();
-
+      Health{ health:30. },
+    )).observe(on_death).id();
 
     let tower = commands.spawn((
       TurretTower,
@@ -388,3 +396,32 @@ fn track_target(
 
 
 
+fn on_death(
+  event:On<Add, Dead>,
+  mut query:Query<(&mut Dead, &Transform, &TurretComponents, &WeaponAttachments)>,
+  component_query:Query<(Option<&TurretTower>, &GlobalTransform)>,
+  mut commands:Commands,
+  wreck_resources:Res<WreckResources>,
+  mut effect_writer:MessageWriter<EffectSpriteMessage>,
+){
+  if let Ok((mut dead, transform, components, weapons)) = query.get_mut(event.entity){
+    dead.timer = Timer::from_seconds(5., TimerMode::Once);
+    effect_writer.write(EffectSpriteMessage::new(EFFECT_TYPE_SPLOSION.to_string(), transform.translation, 20., Vec3::ZERO));
+    commands.entity(event.entity).remove::<(Turret, Dead, Health)>();
+    for component in components.into_iter(){
+      commands.entity(*component)
+        .insert(
+          MeshMaterial3d(wreck_resources.wreck_material.clone())
+        );
+      if let Ok((tower, transform)) = component_query.get(*component) {
+        effect_writer.write(EffectSpriteMessage::new(EFFECT_TYPE_SPLOSION.to_string(), transform.translation(), 16., Vec3::ZERO));
+        if tower.is_some(){
+          commands.entity(*component).insert(Dead::new(3.0));
+        }
+      };
+    }
+    for weapon in weapons.into_iter(){
+      commands.entity(*weapon).despawn();
+    }
+  };
+}

@@ -49,7 +49,7 @@ impl ProjectileGun{
 #[relationship(relationship_target = WeaponAttachments)]
 pub struct AttachedWeapon(pub Entity);
 
-#[derive(Component, Default, Debug, PartialEq, Eq)]
+#[derive(Component, Default, Debug, PartialEq, Eq, Clone)]
 #[relationship_target(relationship = AttachedWeapon, linked_spawn)]
 pub struct WeaponAttachments(Vec<Entity>);
 

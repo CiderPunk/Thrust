@@ -14,7 +14,7 @@ const MAX_EFFECT_FRAMES:usize = 50;
 
 const EFFECT_SPRITE_SHADER_PATH: &str = "shaders/animated_uv.wgsl";
 
-const EFFECT_TYPE_SPLOSION:&'static str = "splosion";
+pub const EFFECT_TYPE_SPLOSION:&'static str = "splosion";
 
 pub struct EffectSpritePlugin;
 
