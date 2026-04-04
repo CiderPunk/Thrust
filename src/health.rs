@@ -14,11 +14,15 @@ impl Plugin for HealthPlugin{
 
 
 fn remove_dead(
-  query:Query<Entity, With<Dead>>,
+  query:Query<(&mut Dead,Entity)>,
   mut commands:Commands,
+  time:Res<Time>,
 ){
-  for entity in query{
-    commands.entity(entity).despawn();
+  for (mut dead,entity) in query{
+    dead.timer.tick(time.delta());
+    if dead.timer.is_finished(){
+      commands.entity(entity).despawn();
+    }
   }
 }
 
@@ -43,9 +47,16 @@ pub struct DamageEvent {
 }
 
 
-#[derive(Component)]
-pub struct Dead;
+#[derive(Component, Default)]
+pub struct Dead{
+  pub timer:Timer,
+}
 
+impl Dead{
+  pub fn new(time_to_live:f32)->Self{
+    Self{ timer:Timer::from_seconds(time_to_live, TimerMode::Once)}
+  }
+}
 
 fn on_damage(
   event:On<DamageEvent>, 
@@ -58,8 +69,8 @@ fn on_damage(
     health.health -= event.value;
     info!("Entity {} took damage {}, health now {}", event.target, event.value, health.health);
     if health.health <= 0.{
-      commands.entity(event.target).insert(Dead);
-          info!("Entity {} dead", event.target);
+      commands.entity(event.target).insert(Dead::new(0.));
+        info!("Entity {} dead", event.target);
     }
     
   };

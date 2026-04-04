@@ -1,10 +1,10 @@
 use std::f32::consts::PI;
 
 use avian3d::prelude::*;
-use bevy::{asset::LoadState, gltf::GltfMesh, light::{NotShadowCaster, NotShadowReceiver}, math::VectorSpace, prelude::*};
+use bevy::{gltf::GltfMesh, light::{NotShadowCaster, NotShadowReceiver}, prelude::*};
 
 
-use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::EffectSpriteMessage, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::{Dead, Health, Hurtable}};
+use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::EffectSpriteMessage, game_state::GameState, get_gltf_primative, health::{Dead, Health, Hurtable}, wreckage::WreckResources};
 pub struct CeilingLightPlugin;
 
 impl Plugin for CeilingLightPlugin{
@@ -14,8 +14,9 @@ impl Plugin for CeilingLightPlugin{
         ..default()
       })
       .add_systems(OnEnter(AssetLoadState::Loaded), init_light_resources)
-      .add_systems(OnEnter(GameState::Initialize), spawn_ceiling_lights)
-      .add_systems(Update, handle_death.in_set(GameSchedule::EntityUpdates));
+      .add_systems(OnEnter(GameState::Initialize), spawn_ceiling_lights);
+    //  .add_systems(Update, handle_death.in_set(GameSchedule::EntityUpdates))
+     // .add_observer(on_death);
   }
 }
 
@@ -43,7 +44,7 @@ fn init_light_resources(
   game_assets: Res<GameAssets>,
   gltf_assets: Res<Assets<Gltf>>,
   gltf_meshes: Res<Assets<GltfMesh>>,
-  mut meshes: ResMut<Assets<Mesh>>,
+  meshes: ResMut<Assets<Mesh>>,
 ) -> Result<()> {
   info!("Init ceiling light resources");
   let models = gltf_assets.get(&game_assets.models).ok_or("Couldn't get models")?;
@@ -110,20 +111,24 @@ fn spawn_ceiling_lights(
           Transform::from_translation(Vec3::new(4.9,-2.6,0.)).looking_to(-Dir3::Y, Dir3::Z)
         )
       ]
-    ));
-
-
+    )).observe(on_death);
   }
 }
 
 
-fn handle_death(
-  query:Query<&GlobalTransform, (With<CeilingLight>, With<Dead>)>,
+fn on_death(
+  event: On<Add, Dead>,
+  mut query:Query<(&mut Dead, &GlobalTransform)>,
+  mut commands:Commands,
   mut effect_writer:MessageWriter<EffectSpriteMessage>,
+  wreck_resources:Res<WreckResources>,
 ){
-  for transform in query{
+  info!("Ceiling light dead");
+  if let Ok((mut dead, transform)) = query.get_mut(event.entity) {
+    dead.timer = Timer::from_seconds(2.0, TimerMode::Once);
     effect_writer.write(EffectSpriteMessage::new("splosion".to_string(), transform.translation().clone(), 20., Vec3::ZERO));
-
-  }
-
+    commands
+      .entity(event.entity)
+      .insert(MeshMaterial3d(wreck_resources.wreck_material.clone()));
+  };
 }
