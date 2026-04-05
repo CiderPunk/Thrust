@@ -2,7 +2,7 @@ use core::slice;
 use std::f32::consts::PI;
 use avian3d::prelude::*;
 use bevy::{ecs::relationship::DescendantIter, gltf::GltfMesh, math::{FloatPow, VectorSpace}, prelude::*};
-use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::{EFFECT_TYPE_SPLOSION, EffectSpriteMessage}, game_physics::GameLayer, game_state::GameState, get_gltf_primative, health::{Dead, Health, Hurtable}, player::Player, weapons::{AttachedWeapon, ProjectileGun, Weapon, WeaponAttachments}, wreckage::WreckResources};
+use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::{EFFECT_TYPE_SPLOSION, EffectSpriteMessage}, game_physics::GameLayer, game_state::GameState, get_gltf_primative, health::{Dead, Health, Hurtable}, player::Player, weapons::{AttachedWeapon, ProjectileGun, Weapon, WeaponAttachments}, wreckage::{Wreck, WreckResources}};
 
 
 
@@ -42,7 +42,8 @@ struct TurretResources{
   gimble_mesh:Handle<Mesh>,
   gun_mesh:Handle<Mesh>,
   base_collider:Option<Collider>,
-  tower_collider:Option<Collider>
+  tower_collider:Option<Collider>,
+  gimble_collider:Option<Collider>,
 }
 
 #[derive(Component, Default, Reflect, Debug)]
@@ -129,10 +130,13 @@ fn init_turret_resources(
 
 
   let base_collider =  get_gltf_primative!(gltf_meshes, models,"turret-base-collision" );
-  let base_collider_mesh = meshes.get(&base_collider.mesh).clone().ok_or("Couldn't get collision mesh")?;
+  let base_collider_mesh = meshes.get(&base_collider.mesh).clone().ok_or("Couldn't get base collision mesh")?;
 
   let tower_collider =  get_gltf_primative!(gltf_meshes, models,"turret-tower-collision" );
-  let tower_collider_mesh = meshes.get(&tower_collider.mesh).clone().ok_or("Couldn't get collision mesh")?;
+  let tower_collider_mesh = meshes.get(&tower_collider.mesh).clone().ok_or("Couldn't get tower collision mesh")?;
+
+  let gimble_collider = get_gltf_primative!(gltf_meshes, models, "turret-gimble-collision");
+  let gimble_collider_mesh = meshes.get(&gimble_collider.mesh).cloned().ok_or("Couldn't get gibmle collision mesh")?;
 
   turret_resources.turret_material = base.material.clone().ok_or("no flame material")?;
 
@@ -141,9 +145,9 @@ fn init_turret_resources(
   turret_resources.tower_mesh = tower.mesh.clone();
   turret_resources.gun_mesh = gun.mesh.clone();
 
-  turret_resources.base_collider =  Some(Collider::convex_hull_from_mesh(base_collider_mesh).ok_or("couldn't create collider from mesh")?);
-  turret_resources.tower_collider =  Some(Collider::convex_hull_from_mesh(tower_collider_mesh).ok_or("couldn't create collider from mesh")?);
-
+  turret_resources.base_collider =  Some(Collider::convex_hull_from_mesh(base_collider_mesh).ok_or("couldn't create base collider from mesh")?);
+  turret_resources.tower_collider =  Some(Collider::convex_hull_from_mesh(tower_collider_mesh).ok_or("couldn't create tower collider from mesh")?);
+  turret_resources.gimble_collider = Some(Collider::convex_hull_from_mesh(&gimble_collider_mesh).ok_or("couldn't creat gimble collider from mesh")?);
   Ok(())
 }
 
@@ -399,29 +403,45 @@ fn track_target(
 fn on_death(
   event:On<Add, Dead>,
   mut query:Query<(&mut Dead, &Transform, &TurretComponents, &WeaponAttachments)>,
-  component_query:Query<(Option<&TurretTower>, &GlobalTransform)>,
+  gimble_query:Query<(Entity,&GlobalTransform),With<TurretGimble>>,
+  tower_query:Query<Entity,With<TurretTower>>, 
   mut commands:Commands,
   wreck_resources:Res<WreckResources>,
+  turret_resources:Res<TurretResources>,
   mut effect_writer:MessageWriter<EffectSpriteMessage>,
 ){
   if let Ok((mut dead, transform, components, weapons)) = query.get_mut(event.entity){
     dead.timer = Timer::from_seconds(5., TimerMode::Once);
     effect_writer.write(EffectSpriteMessage::new(EFFECT_TYPE_SPLOSION.to_string(), transform.translation, 20., Vec3::ZERO));
     commands.entity(event.entity).remove::<(Turret, Dead, Health)>();
-    for component in components.into_iter(){
-      commands.entity(*component)
-        .insert(
-          MeshMaterial3d(wreck_resources.wreck_material.clone())
-        );
-      if let Ok((tower, transform)) = component_query.get(*component) {
+
+
+    for &component in &components.0{
+      if let Ok((gimble,transform)) = gimble_query.get(component) {
+        //effect
         effect_writer.write(EffectSpriteMessage::new(EFFECT_TYPE_SPLOSION.to_string(), transform.translation(), 16., Vec3::ZERO));
-        if tower.is_some(){
-          commands.entity(*component).insert(Dead::new(3.0));
-        }
+        //get rid of old gimble
+        commands.entity(gimble).despawn();
+        //spawn some wreckage
+        commands.spawn((
+          Wreck::new(1.0, 0.5, 12., EFFECT_TYPE_SPLOSION.to_string()),
+          Mesh3d(turret_resources.gimble_mesh.clone()),
+          MeshMaterial3d(wreck_resources.wreck_material.clone()),
+          transform.compute_transform(),
+          CollisionLayers::new([GameLayer::Default], [GameLayer::Default, GameLayer::Player, GameLayer::Enemy, GameLayer::Cargo]),
+          ColliderDensity(0.1),
+          RigidBody::Dynamic,
+          turret_resources.gimble_collider.clone().unwrap(),
+        ));  
       };
-    }
-    for weapon in weapons.into_iter(){
-      commands.entity(*weapon).despawn();
+      if let Ok(tower) = tower_query.get(component){
+        commands.entity(tower)
+          .insert((
+            Wreck::new(1., 0.4, 12., EFFECT_TYPE_SPLOSION.to_string()),
+            MeshMaterial3d(wreck_resources.wreck_material.clone())
+          ))
+          .remove::<Hurtable>();
+      };
     }
   };
 }
