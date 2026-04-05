@@ -428,7 +428,7 @@ fn on_death(
           Mesh3d(turret_resources.gimble_mesh.clone()),
           MeshMaterial3d(wreck_resources.wreck_material.clone()),
           transform.compute_transform(),
-          CollisionLayers::new([GameLayer::Default], [GameLayer::Default, GameLayer::Player, GameLayer::Enemy, GameLayer::Cargo]),
+          CollisionLayers::new([GameLayer::Default], [GameLayer::Default]),
           ColliderDensity(0.1),
           RigidBody::Dynamic,
           turret_resources.gimble_collider.clone().unwrap(),
