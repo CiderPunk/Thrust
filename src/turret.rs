@@ -424,14 +424,19 @@ fn on_death(
         commands.entity(gimble).despawn();
         //spawn some wreckage
         commands.spawn((
-          Wreck::new(1.0, 0.5, 12., EFFECT_TYPE_SPLOSION.to_string()),
+          Wreck::new(2.0, 0.6, 12., EFFECT_TYPE_SPLOSION.to_string()),
           Mesh3d(turret_resources.gimble_mesh.clone()),
           MeshMaterial3d(wreck_resources.wreck_material.clone()),
           transform.compute_transform(),
-          CollisionLayers::new([GameLayer::Default], [GameLayer::Default, GameLayer::Player, GameLayer::Enemy, GameLayer::Cargo]),
+          CollisionLayers::new([GameLayer::Default], [GameLayer::Default]),
           ColliderDensity(0.1),
           RigidBody::Dynamic,
           turret_resources.gimble_collider.clone().unwrap(),
+          children![(
+            Mesh3d (turret_resources.gun_mesh.clone()),
+            MeshMaterial3d(wreck_resources.wreck_material.clone()),
+            Transform::from_translation(Vec3::ZERO),
+          )],
         ));  
       };
       if let Ok(tower) = tower_query.get(component){
