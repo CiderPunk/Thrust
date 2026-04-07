@@ -18,6 +18,7 @@ mod turret;
 mod ceiling_light;
 mod health;
 mod wreckage;
+mod prompt;
 
 use bevy::{asset::AssetMetaCheck, color::palettes::css::WHITE, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
@@ -27,7 +28,7 @@ use bevy_prng::WyRand;
 use bevy_rand::plugin::EntropyPlugin;
 
 
-use crate::{asset_management::AssetManagementPlugin, bullet::BulletPlugin, camera::CameraPlugin, cargo::CargoPlugin, ceiling_light::CeilingLightPlugin, effect_sprite::EffectSpritePlugin, game::GamePlugin, game_physics::GamePhysicsPlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, health::HealthPlugin, map::MapPlugin, movement::MovementPlugin, player::PlayerPlugin, shaders::ShaderPlugin, static_lights::StaticLightsPlugin, turret::TurretPlugin, weapons::WeaponsPlugin, wreckage::WreckagePlugin};
+use crate::{asset_management::AssetManagementPlugin, bullet::BulletPlugin, camera::CameraPlugin, cargo::CargoPlugin, ceiling_light::CeilingLightPlugin, effect_sprite::EffectSpritePlugin, game::GamePlugin, game_physics::GamePhysicsPlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, health::HealthPlugin, map::MapPlugin, movement::MovementPlugin, player::PlayerPlugin, prompt::PromptPlugin, shaders::ShaderPlugin, static_lights::StaticLightsPlugin, turret::TurretPlugin, weapons::WeaponsPlugin, wreckage::WreckagePlugin};
 
 
 const APP_NAME: &str = "Caves";
@@ -80,6 +81,7 @@ fn main() {
       CeilingLightPlugin,
       HealthPlugin,
       WreckagePlugin,
+      PromptPlugin,
     ))
     .insert_resource(ClearColor(Color::srgb(0., 0., 0.)))
     .insert_resource(GlobalAmbientLight {

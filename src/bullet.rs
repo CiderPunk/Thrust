@@ -1,6 +1,5 @@
 use avian3d::prelude::{Forces, PhysicsSystems, RigidBodyForces, SpatialQuery, SpatialQueryFilter};
 use bevy::{prelude::*, render::render_resource::encase::private::Length};
-
 use crate::{effect_sprite::EffectSpriteMessage, game_physics::{ImpactEvent, PhysicsBody}, game_schedule::GameSchedule, health::{DamageEvent, Health, Hurtable}};
 
 const BULLET_COLOUR: LinearRgba = LinearRgba::new(2., 1.8, 0.2, 1.0);
