@@ -6,7 +6,8 @@ impl Plugin for GamePlugin {
   fn build(&self, app: &mut App) {
     app
       .add_systems(OnEnter(AssetLoadState::Loaded), init_game)
-      .add_systems(OnEnter(GameState::Initialize), start_game);
+      .add_systems(OnEnter(GameState::Initialize), init_triggers)
+      .add_systems(OnEnter(GameState::TriggerInitialize), start_game);
   }
 }
 
@@ -15,8 +16,15 @@ fn init_game(
  ){
   info!("Game initializing...");
   next_state.set(GameState::Initialize);
-
 }
+
+fn init_triggers(
+  mut next_state: ResMut<NextState<GameState>>,
+ ){
+  info!("Triggers initializing...");
+  next_state.set(GameState::TriggerInitialize);
+}
+
 
 fn start_game(
   mut next_state: ResMut<NextState<GameState>>,

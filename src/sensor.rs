@@ -1,7 +1,7 @@
 use avian3d::prelude::*;
 use bevy::prelude::*;
 
-use crate::{asset_management::AssetLoadState, game_physics::GameLayer, game_state::GameState};
+use crate::{asset_management::AssetLoadState, game_physics::GameLayer, game_state::GameState, trigger::TriggerEvent};
 
 pub struct SensorPlugin;
 
@@ -35,15 +35,29 @@ fn init_sensors(
       ))
       .observe(on_player_entered)
       .observe(on_player_exited);
-    //*visiblity = Visibility::Hidden;
+    *visiblity = Visibility::Hidden;
   }
 }
 
-fn on_player_entered(event:On<CollisionStart>){
-  info!("Player entered sensor");
-  //trigger
+fn on_player_entered(
+  event:On<CollisionStart>,
+  mut commands:Commands,
+){
+  if let Some(trigger_entity) = event.body1 {
+    info!("Player entered sensor {}", trigger_entity);
+    commands.trigger(TriggerEvent{ entity: trigger_entity, state:true });
+  }
 }
-fn on_player_exited(event:On<CollisionEnd>){
+
+
+fn on_player_exited(
+  event:On<CollisionEnd>,
+  mut commands:Commands,
+){
+  if let Some(trigger_entity) = event.body1 {
+    
+    commands.trigger(TriggerEvent{ entity: trigger_entity, state:false });
+  }
   info!("Player exited sensor");
   //trigger
 }

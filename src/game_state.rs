@@ -15,5 +15,6 @@ pub enum GameState {
   #[default]
   Loading,
   Initialize,
+  TriggerInitialize,
   Playing,
 }
