@@ -152,7 +152,7 @@ fn spawn_player(
       AngularDamping(20.0),
       TransformInterpolation,
       LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
-      CollisionLayers::new([GameLayer::Player], [GameLayer::Default, GameLayer::Enemy, GameLayer::Bullet, GameLayer::Cargo]),
+      CollisionLayers::new([GameLayer::Player], [GameLayer::Default, GameLayer::Enemy, GameLayer::Bullet, GameLayer::Cargo, GameLayer::Sensor]),
       player_resources.collider.clone().unwrap(),
       //NotShadowCaster,
       actions!(Player[

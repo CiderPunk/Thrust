@@ -38,6 +38,7 @@ pub enum GameLayer{
   Enemy,
   Cargo,
   Bullet,
+  Sensor,
 }
 
 
