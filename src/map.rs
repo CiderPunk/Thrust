@@ -7,12 +7,25 @@ impl Plugin for MapPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_systems(OnEnter(AssetLoadState::Loaded), spawn_map)
-      .add_systems(OnEnter(GameState::Initialize), init_collision_hulls);
+      .add_systems(OnEnter(GameState::Initialize), (init_collision_hulls, init_moving_blocks));
   }
 }
 
+#[derive(Component, Default, Reflect, Debug)]
+#[reflect(Component, Default)]
+#[type_path = "api"]
+struct CollisionHull{
+  leave_mesh:bool,
+}
 
 
+#[derive(Component, Default, Reflect, Debug)]
+#[reflect(Component, Default)]
+#[type_path = "api"]
+struct MovingBlock{
+  displacement:Vec3,
+  timer:Option<Timer>,
+}
 
 
 fn spawn_map(
@@ -32,11 +45,21 @@ fn spawn_map(
   Ok(())
 } 
 
-#[derive(Component, Default, Reflect, Debug)]
-#[reflect(Component, Default)]
-#[type_path = "api"]
-struct CollisionHull{
-  leave_mesh:bool,
+
+fn init_moving_blocks(
+  mut query: Query<(Entity, &MovingBlock), With<Mesh3d>>, 
+  mut commands:Commands,
+){
+ for (entity, moving_block) in query.iter_mut() {
+    info!("moving block found: {:?}", entity);
+    commands.entity(entity)
+      .insert(ColliderConstructor::TrimeshFromMesh)
+      .insert(RigidBody::Kinematic);
+
+
+  }
+
+
 }
 
 
@@ -55,7 +78,9 @@ fn init_collision_hulls(
       *visiblity = Visibility::Hidden;
     }
   }
-
 }
+
+
+
 
 

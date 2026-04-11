@@ -1,6 +1,6 @@
 use core::f32;
 
-use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, PhysicsLayer, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
+use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, PhysicsLayer, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation, WriteRigidBodyForces};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, time::Stopwatch};
 use bevy_enhanced_input::prelude::*;
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::{GameLayer, PhysicsBody}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::Hurtable, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};

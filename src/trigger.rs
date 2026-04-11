@@ -8,13 +8,9 @@ impl Plugin for TriggerPlugin{
   fn build(&self, app: &mut App) {
     app
       .add_systems(OnEnter(GameState::TriggerInitialize), init_triggers);
-
-
-    app.add_observer(|event: On<TriggerEvent>| {
-    info!("Global TriggerEvent caught for entity: {:?}", event.entity);
-});
   }
 }
+
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Hash, Default, Copy, Reflect)]
 pub enum TriggerRepeatType{
@@ -24,7 +20,6 @@ pub enum TriggerRepeatType{
 }
 
 #[derive(EntityEvent)]
-#[entity_event(auto_propagate, propagate = &'static TriggerSource)]
 pub struct TriggerEvent{
   #[event_target]
   pub entity:Entity,
@@ -47,6 +42,8 @@ pub struct TriggerReceiver{
   name:String,
 }
 
+
+
 #[derive(Component, Debug, PartialEq, Eq)]
 #[relationship(relationship_target = TriggerRecipients)]
 pub struct TriggerSource(pub Entity);
@@ -63,6 +60,18 @@ pub struct TriggerDestination(pub Entity);
 #[derive(Component, Default, Debug, PartialEq, Eq, Clone)]
 #[relationship_target(relationship = TriggerDestination, linked_spawn)]
 pub struct TriggerSenders(Vec<Entity>);
+
+
+impl<'a> IntoIterator for &'a TriggerRecipients {
+    type Item = <Self::IntoIter as Iterator>::Item;
+
+    type IntoIter = slice::Iter<'a, Entity>;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
 
 
 fn init_triggers(
@@ -85,14 +94,15 @@ fn init_triggers(
     for target in targets{
       if let Some(receiver) = receivers.get(target){
         info!("Trigger link created: {} {} ", target, entity);
+
+        commands.entity(entity).observe(propegate_triggers);
         //spawn our trigger link
-        let bridge = commands.spawn(( 
+        commands.spawn(( 
           trigger.repeat.clone(),
           TriggerSource(entity),
           TriggerDestination(*receiver),
         ))
-        .observe(trigger_relay)
-        .id();
+        .observe(trigger_relay);
 
       }
     }
@@ -100,12 +110,28 @@ fn init_triggers(
 }
 
 
+fn propegate_triggers(
+  event:On<TriggerEvent>,
+  query:Query<&TriggerRecipients>,
+  mut commands:Commands,
+){
+  info!("Propegate event {} {}", event.entity, event.state);
+  if let Ok(recipients) = query.get(event.entity){
+    for &entity in recipients.into_iter(){
+      commands.trigger(TriggerEvent{ entity, state:event.state });
+    }
+  };
+}
+
+
+
+
 fn trigger_relay(
   event:On<TriggerEvent>,
   query:Query<(&TriggerDestination, &TriggerRepeatType)>,
   mut commands:Commands,
 ){
-  info!("Relayed event!");
+  info!("Relayed event {} {}", event.entity, event.state);
   if let Ok((destination, repeat)) = query.get(event.entity){
     commands.trigger(TriggerEvent{ entity: destination.0, state:event.state });
     match repeat{
