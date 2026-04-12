@@ -28,7 +28,7 @@ pub enum AssetLoadState {
 pub struct GameAssets {
   #[asset(path = "models.glb")]
   pub models: Handle<Gltf>,
-  #[asset(path = "maps/map1.glb")]
+  #[asset(path = "maps/map3.glb")]
   pub map_model: Handle<Gltf>,
 }
 

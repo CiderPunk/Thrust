@@ -1,11 +1,12 @@
 use core::f32;
 
-use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, PhysicsLayer, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation};
+use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, PhysicsLayer, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation, WriteRigidBodyForces};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, time::Stopwatch};
 use bevy_enhanced_input::prelude::*;
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::{GameLayer, PhysicsBody}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::Hurtable, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};
 
-
+const PLAYER_LIGHT_BASE:f32 = 5_000_000.;
+const PLAYER_LIGHT_THRUST:f32 = 15_000_000.;
 //const PLAYER_THRUST: f32 = 250.;
 const PLAYER_THRUST_SCALE: f32 = 40000.;
 const PLAYER_YAW_SCALE: f32 = 80000.;
@@ -151,7 +152,7 @@ fn spawn_player(
       AngularDamping(20.0),
       TransformInterpolation,
       LockedAxes::new().lock_rotation_y().lock_rotation_x().lock_translation_z(),
-      CollisionLayers::new([GameLayer::Player], [GameLayer::Default, GameLayer::Enemy, GameLayer::Bullet, GameLayer::Cargo]),
+      CollisionLayers::new([GameLayer::Player], [GameLayer::Default, GameLayer::Enemy, GameLayer::Bullet, GameLayer::Cargo, GameLayer::Sensor]),
       player_resources.collider.clone().unwrap(),
       //NotShadowCaster,
       actions!(Player[
@@ -194,8 +195,8 @@ fn spawn_player(
         ),
         (
           PointLight {
-            intensity: 3_000_000.0,
-            range: 50.,
+            intensity: 10_000_000.0,
+            range: 100.,
             color: WHITE.into(),
             shadows_enabled: true,
             shadow_map_near_z: 2.0,
@@ -328,10 +329,10 @@ fn animate_flame(
     flame.ignite_time.tick(time.delta());
     let  scale = 0.5 + ((flame.ignite_time.elapsed_secs() * 10.).sin().abs() *0.8) - flame.ignite_time.elapsed_secs().min(0.2); 
     transform.scale = Vec3::splat(scale);
-    light.intensity = 1_000_000.0  + (2_000_000. * scale);
+    light.intensity = PLAYER_LIGHT_BASE  + (PLAYER_LIGHT_THRUST * scale);
   }
   else{
-    light.intensity = 1_000_000.0;
+    light.intensity = PLAYER_LIGHT_BASE;
   }
 }
 

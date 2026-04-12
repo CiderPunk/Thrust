@@ -1,6 +1,6 @@
 use core::slice;
 
-use avian3d::prelude::{Forces, RigidBodyForces, SpatialQueryFilter};
+use avian3d::prelude::{Forces, ReadRigidBodyForces, RigidBodyForces, SpatialQueryFilter, WriteRigidBodyForces};
 use bevy::{light::NotShadowCaster, math::VectorSpace, prelude::*};
 
 use crate::{bullet::{Bullet, BulletResources}, game_physics::GameLayer};
