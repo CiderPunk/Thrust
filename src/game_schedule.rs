@@ -8,11 +8,17 @@ impl Plugin for GameSchedulePlugin
 {
   fn build(&self, app: &mut App) {
     app.configure_sets(Update,(
-      GameSchedule::EntityUpdates,
-      GameSchedule::DespawnEntites,
+        GameSchedule::EntityUpdates,
+        GameSchedule::DespawnEntites,
       ).chain()
       .run_if(in_state(GameState::Playing))
     );
+    app.configure_sets(FixedUpdate ,(
+        GameSchedule::MoveEntities,
+      ).chain()
+      .run_if(in_state(GameState::Playing))
+    );
+
   }
 }
 
@@ -21,4 +27,5 @@ pub enum GameSchedule{
   EntityUpdates,
   DespawnEntites,
   PostPhysics,
+  MoveEntities,
 }

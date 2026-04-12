@@ -43,10 +43,10 @@ fn on_player_entered(
   event:On<CollisionStart>,
   mut commands:Commands,
 ){
-  if let Some(trigger_entity) = event.body1 {
-    info!("Player entered sensor {}", trigger_entity);
-    commands.trigger(TriggerEvent{ entity: trigger_entity, state:true });
-  }
+
+  info!("Player entered sensor {}", event.collider1);
+  commands.trigger(TriggerEvent{ entity: event.collider1, state:true });
+
 }
 
 
@@ -54,11 +54,7 @@ fn on_player_exited(
   event:On<CollisionEnd>,
   mut commands:Commands,
 ){
-  if let Some(trigger_entity) = event.body1 {
-    
-    commands.trigger(TriggerEvent{ entity: trigger_entity, state:false });
-  }
-  info!("Player exited sensor");
-  //trigger
+  info!("Player exited sensor {}", event.collider1);
+  commands.trigger(TriggerEvent{ entity: event.collider1, state:false });
 }
 
