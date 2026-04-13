@@ -155,12 +155,12 @@ fn init_turret_resources(
 
 
 fn spawn_turrets(
-  query:Query<&Transform, With<TurretSpawn>>,
+  query:Query<(&Transform, Entity), With<TurretSpawn>>,
   mut commands:Commands,
   turret_resources:Res<TurretResources>,
 ){
   info!("Spawning turrets");
-  for start_transform in query.iter(){
+  for (start_transform, placeholder_entity) in query.iter(){
     info!("Turret spawned");
 
     let turret = commands.spawn((
@@ -213,6 +213,10 @@ fn spawn_turrets(
         AttachedWeapon(turret),
       )],
     ));
+    //remove placeholder
+    commands.entity(placeholder_entity).despawn();
+
+
   }
 }
 
