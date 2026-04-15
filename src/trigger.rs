@@ -109,7 +109,6 @@ fn init_triggers(
   }
 }
 
-
 fn propegate_triggers(
   event:On<TriggerEvent>,
   query:Query<&TriggerRecipients>,
@@ -122,9 +121,6 @@ fn propegate_triggers(
     }
   };
 }
-
-
-
 
 fn trigger_relay(
   event:On<TriggerEvent>,
@@ -139,4 +135,30 @@ fn trigger_relay(
       TriggerRepeatType::Once => commands.entity(event.entity).despawn(),
     }
   };
+}
+
+
+
+#[derive(serde::Deserialize, Asset, TypePath)]
+pub struct TriggerDataCollection{
+  triggers:Vec<TriggerData>,
+  dialogues:Vec<Dialogue>,
+}
+
+#[derive(serde::Deserialize, Asset, TypePath)]
+struct TriggerData{
+  name: String,
+  triggers:Option<Vec<String>>,
+  groups:Option<Vec<String>>,
+  dialogue:Option<String>,
+  delay:Option<f32>,
+  invert:Option<bool>,
+  one_shot:Option<bool>,
+}
+#[derive(serde::Deserialize, Asset, TypePath)]
+struct Dialogue{
+  name: String,
+  display_time:f32,
+  content:String,
+  image:Option<String>,
 }

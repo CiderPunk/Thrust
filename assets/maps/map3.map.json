@@ -1,0 +1,9 @@
+{
+  "triggers":[
+    {
+      "name":"door1",
+      "groups":[ "door1" ]
+    }
+  ],
+  "dialogues":[]
+}
