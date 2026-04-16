@@ -1,23 +1,16 @@
 use core::slice;
 use bevy::{platform::collections::HashMap, prelude::*};
 
-use crate::game_state::GameState;
+use crate::{asset_management::GameAssets, game_state::GameState};
 
 pub struct TriggerPlugin;
 impl Plugin for TriggerPlugin{
   fn build(&self, app: &mut App) {
     app
-      .add_systems(OnEnter(GameState::TriggerInitialize), init_triggers);
+      .add_systems(OnEnter(GameState::TriggerInitialize), wire_triggers);
   }
 }
 
-
-#[derive(Component, Debug, Clone, PartialEq, Eq, Hash, Default, Copy, Reflect)]
-pub enum TriggerRepeatType{
-  #[default]
-  Repeat,
-  Once,
-}
 
 #[derive(EntityEvent)]
 pub struct TriggerEvent{
@@ -31,8 +24,7 @@ pub struct TriggerEvent{
 #[reflect(Component, Default)]
 #[type_path = "api"]
 pub struct TriggerSender{
-  targets:String,
-  repeat:TriggerRepeatType,
+  name:String,
 }
 
 #[derive(Component, Default, Reflect, Debug)]
@@ -42,17 +34,15 @@ pub struct TriggerReceiver{
   name:String,
 }
 
-
-
 #[derive(Component, Debug, PartialEq, Eq)]
-#[relationship(relationship_target = TriggerRecipients)]
-pub struct TriggerSource(pub Entity);
+#[relationship(relationship_target = TriggerSources)]
+pub struct TriggerRelay(pub Entity);
 
 #[derive(Component, Default, Debug, PartialEq, Eq, Clone)]
-#[relationship_target(relationship = TriggerSource, linked_spawn)]
-pub struct TriggerRecipients(Vec<Entity>);
+#[relationship_target(relationship = TriggerRelay, linked_spawn)]
+pub struct TriggerSources (Vec<Entity>);
 
-
+/*
 #[derive(Component, Debug, PartialEq, Eq)]
 #[relationship(relationship_target = TriggerSenders)]
 pub struct TriggerDestination(pub Entity);
@@ -72,8 +62,80 @@ impl<'a> IntoIterator for &'a TriggerRecipients {
         self.0.iter()
     }
 }
+ */
 
 
+
+fn wire_triggers(
+  sender_query:Query<(Entity, &TriggerSender)>,
+  receiver_query:Query<(Entity, &TriggerReceiver)>,
+  trigger_data: Res<Assets<TriggerDataCollection>>,
+  game_assets: Res<GameAssets>,
+  mut commands:Commands,
+){
+  
+  let Some(trigger_collection) = trigger_data.get(&game_assets.map_data) else{ return; };
+
+  let receivers:HashMap<String,Entity> = receiver_query.iter()
+    .map(|(entity,trigger)|(trigger.name.clone(), entity))
+    .collect();
+
+  let mut trigger_defs:HashMap<String,(&TriggerData, Option<Entity>)> = trigger_collection.triggers.iter()
+    .map(|trigger_data|(
+      trigger_data.name.clone(),
+      (trigger_data, None)
+    )).collect();
+
+  for (sender_entity, sender_trigger) in sender_query{
+    spawn_trigger_relay(commands, );
+    
+    _sender_trigger.name
+    
+    
+    
+    commands.spawn((
+
+
+
+    )).id();
+
+
+
+
+  }
+}
+
+
+fn spawn_trigger_relay(
+  mut commands:Commands,
+  name:&String,
+  triggering_entity:Entity,
+  trigger_defs:&mut HashMap<String,(&TriggerData, &mut Option<Entity>)>,
+)->Entity{
+  let Some((trigger_data,  existing_entity)) = trigger_defs.get_mut(name) else{ return; };
+  let relay = match **existing_entity{
+      Some(entity) => entity,
+      None => {
+        let triggers = match trigger_data.triggers{
+          Some(triggers) => triggers.iter().map(|t| spawn_trigger_relay(commands, name, triggering_entity, trigger_defs)),
+          None => todo!(),
+        }
+
+        if let Some(triggers) = trigger_data.triggers{
+
+        }
+
+        let id = commands.spawn((  
+
+        )).id();
+        **existing_entity = Some(id);
+        id
+      },
+    };
+  relay
+}
+
+/*
 fn init_triggers(
   sender_query:Query<(Entity, &TriggerSender)>,
   receiver_query:Query<(Entity, &TriggerReceiver)>,
@@ -108,7 +170,7 @@ fn init_triggers(
     }
   }
 }
-
+ */
 fn propegate_triggers(
   event:On<TriggerEvent>,
   query:Query<&TriggerRecipients>,
