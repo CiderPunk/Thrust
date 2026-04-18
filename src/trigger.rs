@@ -1,7 +1,7 @@
 use core::slice;
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{platform::collections::HashMap, prelude::*, tasks::futures_lite::io::Repeat};
 
-use crate::{asset_management::GameAssets, game_state::GameState};
+use crate::{asset_management::GameAssets, dialogue::Dialogue, game_state::GameState};
 
 pub struct TriggerPlugin;
 impl Plugin for TriggerPlugin{
@@ -13,6 +13,7 @@ impl Plugin for TriggerPlugin{
 
 
 #[derive(EntityEvent)]
+#[entity_event(auto_propagate, propagate = &'static TriggerTarget)]
 pub struct TriggerEvent{
   #[event_target]
   pub entity:Entity,
@@ -36,11 +37,23 @@ pub struct TriggerReceiver{
 
 #[derive(Component, Debug, PartialEq, Eq)]
 #[relationship(relationship_target = TriggerSources)]
-pub struct TriggerRelay(pub Entity);
+pub struct TriggerTarget(pub Entity);
 
 #[derive(Component, Default, Debug, PartialEq, Eq, Clone)]
-#[relationship_target(relationship = TriggerRelay, linked_spawn)]
+#[relationship_target(relationship = TriggerTarget, linked_spawn)]
 pub struct TriggerSources (Vec<Entity>);
+
+#[derive(Component)]
+pub struct TriggerRelay{
+  targets:Vec<Entity>,
+  delay:Option<f32>,
+  repeat:bool,
+  invert:bool,
+}
+
+#[derive(Component)]
+pub struct TriggerDelay(Timer);
+
 
 /*
 #[derive(Component, Debug, PartialEq, Eq)]
@@ -73,152 +86,130 @@ fn wire_triggers(
   game_assets: Res<GameAssets>,
   mut commands:Commands,
 ){
-  
+
+  info!("Initializing triggers");
   let Some(trigger_collection) = trigger_data.get(&game_assets.map_data) else{ return; };
 
-  let receivers:HashMap<String,Entity> = receiver_query.iter()
-    .map(|(entity,trigger)|(trigger.name.clone(), entity))
+  let dialogue_map:HashMap<String,Entity> = trigger_collection.dialogues.iter()
+    .map(|dialogue_def|
+      (
+        dialogue_def.name.clone(), 
+        commands.spawn(
+          Dialogue{ content: dialogue_def.content.clone(), display_time: Timer::from_seconds(dialogue_def.display_time, TimerMode::Once)  }
+        ).id()  
+      )
+    ).collect();
+
+  let trigger_def_map:HashMap<String,&TriggerDef> = trigger_collection.triggers.iter()
+    .map(|data|(data.name.clone(), data))
     .collect();
 
-  let mut trigger_defs:HashMap<String,(&TriggerData, Option<Entity>)> = trigger_collection.triggers.iter()
-    .map(|trigger_data|(
-      trigger_data.name.clone(),
-      (trigger_data, None)
-    )).collect();
-
-  for (sender_entity, sender_trigger) in sender_query{
-    spawn_trigger_relay(commands, );
-    
-    _sender_trigger.name
-    
-    
-    
-    commands.spawn((
 
 
+  let mut receivers_map:HashMap<String,Vec<Entity>> = HashMap::new();
+  for (entity, receiver) in receiver_query{
+    receivers_map.entry(receiver.name.clone())
+      .or_default().push(entity);
+  }
+  
 
-    )).id();
+  let mut relays:HashMap<String,Entity> = HashMap::new();
 
-
-
-
+  for (entity, trigger_sender) in sender_query{
+    if let Some(relay_entity) = get_trigger_relay(&mut commands, &trigger_sender.name, &receivers_map, &dialogue_map, &mut relays, &trigger_def_map){
+      commands.entity(entity).insert(TriggerTarget(relay_entity));
+    }
   }
 }
 
-
-fn spawn_trigger_relay(
-  mut commands:Commands,
+fn get_trigger_relay(
+  commands: &mut Commands, 
   name:&String,
-  triggering_entity:Entity,
-  trigger_defs:&mut HashMap<String,(&TriggerData, &mut Option<Entity>)>,
-)->Entity{
-  let Some((trigger_data,  existing_entity)) = trigger_defs.get_mut(name) else{ return; };
-  let relay = match **existing_entity{
-      Some(entity) => entity,
-      None => {
-        let triggers = match trigger_data.triggers{
-          Some(triggers) => triggers.iter().map(|t| spawn_trigger_relay(commands, name, triggering_entity, trigger_defs)),
-          None => todo!(),
-        }
+  receivers_map: &HashMap<String, Vec<Entity>>,
+  dialogue_map:&HashMap<String,Entity>,
+  relays: &mut HashMap<String, Entity>,
+  trigger_def_map: &HashMap<String,&TriggerDef>,
+)->Option<Entity> {
 
-        if let Some(triggers) = trigger_data.triggers{
-
-        }
-
-        let id = commands.spawn((  
-
-        )).id();
-        **existing_entity = Some(id);
-        id
-      },
-    };
-  relay
-}
-
-/*
-fn init_triggers(
-  sender_query:Query<(Entity, &TriggerSender)>,
-  receiver_query:Query<(Entity, &TriggerReceiver)>,
-  mut commands:Commands,
-){
-  let mut receivers = HashMap::new();
-  for (entity, trigger) in receiver_query{
-    receivers.insert(trigger.name.clone(), entity);
-  }
-
-  for (entity, trigger) in sender_query{
-    let targets:Vec<&str> = trigger
-      .targets.split(",")
-      .map(|s| s.trim())
-      .filter(|s| !s.is_empty())
-      .collect();
-
-    for target in targets{
-      if let Some(receiver) = receivers.get(target){
-        info!("Trigger link created: {} {} ", target, entity);
-
-        commands.entity(entity).observe(propegate_triggers);
-        //spawn our trigger link
-        commands.spawn(( 
-          trigger.repeat.clone(),
-          TriggerSource(entity),
-          TriggerDestination(*receiver),
-        ))
-        .observe(trigger_relay);
-
-      }
-    }
-  }
-}
- */
-fn propegate_triggers(
-  event:On<TriggerEvent>,
-  query:Query<&TriggerRecipients>,
-  mut commands:Commands,
-){
-  info!("Propegate event {} {}", event.entity, event.state);
-  if let Ok(recipients) = query.get(event.entity){
-    for &entity in recipients.into_iter(){
-      commands.trigger(TriggerEvent{ entity, state:event.state });
-    }
+  //have we already creatyed this relay?
+  if let Some(relay) = relays.get(name){
+    info!("got existing trigger relay {}", name);
+    return Some(*relay);
   };
+  //get the def
+  let Some(trigger_def) = trigger_def_map.get(name) else { 
+    return None; 
+  };
+  
+  let mut targets:Vec<Entity> = Vec::with_capacity(trigger_def.targets.len());
+  for target_name in &trigger_def.targets{
+    if let Some(reciever) =  receivers_map.get(target_name){
+      targets.extend(reciever);
+    }
+    if let Some(dialogue) = dialogue_map.get(target_name){
+      targets.push(*dialogue);
+    }if let Some(relay) = get_trigger_relay(commands, target_name, &receivers_map, &dialogue_map, relays, &trigger_def_map){
+      targets.push(relay);
+    }
+  }
+   
+  let relay = commands.spawn(
+    TriggerRelay{ 
+      targets, 
+      delay:trigger_def.delay,
+      repeat:  match trigger_def.repeat { Some(val) => val, None => true,},
+      invert:  match trigger_def.invert { Some(val) => val, None => false,},
+    }
+  ).observe(trigger_relay).id();
+
+  info!("added new trigger relay {}", name);
+
+  relays.insert(name.clone(), relay);
+  return Some(relay);
 }
 
 fn trigger_relay(
   event:On<TriggerEvent>,
-  query:Query<(&TriggerDestination, &TriggerRepeatType)>,
+  query:Query<&TriggerRelay>,
   mut commands:Commands,
 ){
   info!("Relayed event {} {}", event.entity, event.state);
-  if let Ok((destination, repeat)) = query.get(event.entity){
-    commands.trigger(TriggerEvent{ entity: destination.0, state:event.state });
-    match repeat{
-      TriggerRepeatType::Repeat => (),
-      TriggerRepeatType::Once => commands.entity(event.entity).despawn(),
+  if let Ok(trigger_relay) = query.get(event.entity){
+    match trigger_relay.delay{
+        Some(delay) => {
+          commands.entity(event.entity).insert(TriggerDelay(Timer::from_seconds(delay,TimerMode::Once)));
+        },
+        None => {
+          for target in trigger_relay.targets.clone(){
+            commands.trigger( TriggerEvent{ entity:target, state: trigger_relay.invert != event.state} );
+          }
+          if !trigger_relay.repeat {
+            commands.entity(event.entity).despawn();
+          }
+        },
     }
-  };
+  }
+ 
 }
 
 
 
 #[derive(serde::Deserialize, Asset, TypePath)]
 pub struct TriggerDataCollection{
-  triggers:Vec<TriggerData>,
-  dialogues:Vec<Dialogue>,
+  triggers:Vec<TriggerDef>,
+  dialogues:Vec<DialogueDef>,
 }
 
 #[derive(serde::Deserialize, Asset, TypePath)]
-struct TriggerData{
+struct TriggerDef{
   name: String,
-  triggers:Option<Vec<String>>,
-  groups:Option<Vec<String>>,
-  dialogue:Option<String>,
+  targets:Vec<String>,
   delay:Option<f32>,
   invert:Option<bool>,
-  one_shot:Option<bool>,
+  repeat:Option<bool>,
 }
 #[derive(serde::Deserialize, Asset, TypePath)]
-struct Dialogue{
+struct DialogueDef{
   name: String,
   display_time:f32,
   content:String,

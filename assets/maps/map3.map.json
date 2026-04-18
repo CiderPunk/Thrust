@@ -1,8 +1,9 @@
 {
   "triggers":[
     {
-      "name":"door1",
-      "groups":[ "door1" ]
+      "name":"door1-opener",
+      "targets":[ "door1" ],
+      "invert":false
     }
   ],
   "dialogues":[]
