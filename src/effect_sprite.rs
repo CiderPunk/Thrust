@@ -24,7 +24,7 @@ impl Plugin for EffectSpritePlugin{
       
       .init_resource::<EffectDefinitionCollection>()
       .init_resource::<EffectMaterialsMap>()
-      .add_plugins(JsonAssetPlugin::<SpriteMapData>::new(&["json"]))
+      .add_plugins(JsonAssetPlugin::<SpriteMapData>::new(&["atlas.json"]))
       .add_plugins(MaterialPlugin::<EffectSpriteMaterial>::default())
       .configure_loading_state(
         LoadingStateConfig::new(AssetLoadState::Startup)
@@ -81,7 +81,7 @@ fn load_sprite_sheets(
 
   info!("registering effect assets");
   let image_paths = effect_defs.0.iter().map(|f| format!("{}.png", f.path)).collect();
-  let map_paths = effect_defs.0.iter().map(|f| format!("{}.json", f.path)).collect();
+  let map_paths = effect_defs.0.iter().map(|f| format!("{}.atlas.json", f.path)).collect();
   dynamic_assets.register_asset(
     "spritesheet_images",
     Box::new(StandardDynamicAsset::Files{ paths: image_paths })
@@ -318,10 +318,10 @@ pub struct SpriteSheetAssets{
 
 
 // region: sprite map
-
+/*
 #[derive(Resource)]
 struct SpriteSheetMap(Handle<SpriteMapData>);
-
+ */
 #[derive(serde::Deserialize, Asset, TypePath)]
 struct SpriteMapData {
   frames: Vec<FrameData>,
