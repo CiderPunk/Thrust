@@ -1,13 +1,14 @@
 use core::slice;
 use bevy::{platform::collections::HashMap, prelude::*, tasks::futures_lite::io::Repeat};
 
-use crate::{asset_management::GameAssets, dialogue::Dialogue, game_state::GameState};
+use crate::{asset_management::GameAssets, dialogue::Dialogue, game_schedule::GameSchedule, game_state::GameState};
 
 pub struct TriggerPlugin;
 impl Plugin for TriggerPlugin{
   fn build(&self, app: &mut App) {
     app
-      .add_systems(OnEnter(GameState::TriggerInitialize), wire_triggers);
+      .add_systems(OnEnter(GameState::TriggerInitialize), wire_triggers)
+      .add_systems(Update, delay_trigger.in_set(GameSchedule::EntityUpdates));
   }
 }
 
@@ -52,32 +53,10 @@ pub struct TriggerRelay{
 }
 
 #[derive(Component)]
-pub struct TriggerDelay(Timer);
-
-
-/*
-#[derive(Component, Debug, PartialEq, Eq)]
-#[relationship(relationship_target = TriggerSenders)]
-pub struct TriggerDestination(pub Entity);
-
-#[derive(Component, Default, Debug, PartialEq, Eq, Clone)]
-#[relationship_target(relationship = TriggerDestination, linked_spawn)]
-pub struct TriggerSenders(Vec<Entity>);
-
-
-impl<'a> IntoIterator for &'a TriggerRecipients {
-    type Item = <Self::IntoIter as Iterator>::Item;
-
-    type IntoIter = slice::Iter<'a, Entity>;
-
-    #[inline(always)]
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
-    }
+pub struct TriggerDelay{
+  timer:Timer,
+  state:bool,
 }
- */
-
-
 
 fn wire_triggers(
   sender_query:Query<(Entity, &TriggerSender)>,
@@ -177,7 +156,10 @@ fn trigger_relay(
   if let Ok(trigger_relay) = query.get(event.entity){
     match trigger_relay.delay{
         Some(delay) => {
-          commands.entity(event.entity).insert(TriggerDelay(Timer::from_seconds(delay,TimerMode::Once)));
+          commands.entity(event.entity).insert(TriggerDelay{
+            timer:Timer::from_seconds(delay,TimerMode::Once),
+            state:event.state,
+          });
         },
         None => {
           for target in trigger_relay.targets.clone(){
@@ -189,9 +171,29 @@ fn trigger_relay(
         },
     }
   }
- 
 }
 
+fn delay_trigger(
+  query:Query<(&mut TriggerDelay, &TriggerRelay, Entity)>,
+  mut commands:Commands,
+  time:Res<Time>,
+){
+  for (mut delay, relay, entity) in query{
+    info!("delay timer: {}", delay.timer.elapsed_secs());
+    delay.timer.tick(time.delta());
+    if delay.timer.is_finished(){
+      for target in relay.targets.clone(){
+        commands.trigger( TriggerEvent{ entity:target, state: relay.invert != delay.state} );
+      }
+      if !relay.repeat{
+        commands.entity(entity).despawn();
+      }
+      else{
+        commands.entity(entity).remove::<TriggerDelay>();
+      }
+    }
+  }
+}
 
 
 #[derive(serde::Deserialize, Asset, TypePath)]
