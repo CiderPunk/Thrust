@@ -12,10 +12,19 @@ impl Plugin for SensorPlugin{
   }
 }
 
+#[derive(Reflect, Debug, Default, Copy, Clone)]
+pub enum SensorTriggerState{
+  #[default]
+  All,
+  OnEnter,
+  OnExit,
+}
+
 #[derive(Component, Default, Reflect, Debug)]
 #[reflect(Component, Default)]
 #[type_path = "api"]
 pub struct PlayerSensor{
+  trigger_on:SensorTriggerState
 }
 
 fn init_sensors(
@@ -24,17 +33,27 @@ fn init_sensors(
 ) {
   info!("initializing sensors {}", query.count());
   
-  for (mut visiblity,entity, _) in query.iter_mut() {
+  for (mut visiblity,entity, sensor_config) in query.iter_mut() {
     info!("Sensor found: {:?}", entity);
-    commands.entity(entity)
+
+
+    let sensor = commands.entity(entity)
       .insert((
         ColliderConstructor::ConvexHullFromMesh, 
         Sensor, 
         CollisionEventsEnabled,
         CollisionLayers::new([GameLayer::Sensor], [GameLayer::Player]),
-      ))
-      .observe(on_player_entered)
-      .observe(on_player_exited);
+      )).id();
+      match sensor_config.trigger_on{
+        SensorTriggerState::All => { 
+          commands.entity(sensor)
+            .observe(on_player_entered)
+            .observe(on_player_exited);
+          },
+        SensorTriggerState::OnEnter =>  { commands.entity(sensor).observe(on_player_entered);},
+        SensorTriggerState::OnExit =>  { commands.entity(sensor).observe(on_player_exited);}
+      }
+
     *visiblity = Visibility::Hidden;
   }
 }

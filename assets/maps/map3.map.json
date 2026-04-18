@@ -3,7 +3,9 @@
     {
       "name":"door1-opener",
       "targets":[ "door1" ],
-      "invert":false
+      "invert":false,
+      "delay":1.0,
+      "repeat":false
     }
   ],
   "dialogues":[]

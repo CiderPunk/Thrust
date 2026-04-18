@@ -37,6 +37,8 @@ struct MovingBlockSettings{
   displacement:Vec3,
   movement_time:f32,
   leave_mesh:bool,
+  direction:MovementDirection,
+  init_state:f32,
 }
 
 
@@ -66,7 +68,7 @@ fn spawn_map(
   Ok(())
 } 
 
-#[derive(PartialEq, Eq, Default)]
+#[derive(PartialEq, Eq, Default, Reflect, Debug, Clone, Copy)]
 enum MovementDirection{
   Forward,
   #[default]
@@ -91,7 +93,8 @@ fn init_moving_blocks(
           if let Some(collider) = Collider::convex_hull_from_mesh(mesh){
             let end_transform = transform.with_translation(transform.translation + settings.displacement);
             info!("moving block setup complete: {:?}", entity);
-
+            let mut time = Timer::from_seconds(settings.movement_time, TimerMode::Once);
+            time.set_elapsed(Duration::from_secs_f32(settings.movement_time * settings.init_state));
             commands.entity(entity)
               .insert((
                 collider,
@@ -99,8 +102,8 @@ fn init_moving_blocks(
                 MovingBlock{
                   start_transform: *transform, 
                   end_transform,
-                  time: Timer::from_seconds(settings.movement_time, TimerMode::Once),
-                  direction:MovementDirection::Backward,
+                  time,
+                  direction:settings.direction.clone(),
                 }
               ))
               .observe(trigger_movement);
@@ -114,10 +117,6 @@ fn init_moving_blocks(
       };
       continue;
     }
-
-
-
-  
   }
 }
 
