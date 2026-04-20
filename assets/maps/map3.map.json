@@ -5,7 +5,8 @@
       "targets":[ "door1" ],
       "invert":false,
       "delay":1.0,
-      "repeat":false
+      "repeat":true,
+      "reset":5.0
     }
   ],
   "dialogues":[]
