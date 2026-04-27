@@ -22,6 +22,7 @@ mod prompt;
 mod sensor;
 mod trigger;
 mod dialogue;
+mod lightning;
 
 use bevy::{asset::AssetMetaCheck, color::palettes::css::WHITE, prelude::*};
 use bevy_enhanced_input::EnhancedInputPlugin;
@@ -31,7 +32,7 @@ use bevy_prng::WyRand;
 use bevy_rand::plugin::EntropyPlugin;
 
 
-use crate::{asset_management::AssetManagementPlugin, bullet::BulletPlugin, camera::CameraPlugin, cargo::CargoPlugin, ceiling_light::CeilingLightPlugin, dialogue::DialoguePlugin, effect_sprite::EffectSpritePlugin, game::GamePlugin, game_physics::GamePhysicsPlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, health::HealthPlugin, map::MapPlugin, movement::MovementPlugin, player::PlayerPlugin, prompt::PromptPlugin, sensor::SensorPlugin, shaders::ShaderPlugin, static_lights::StaticLightsPlugin, trigger::TriggerPlugin, turret::TurretPlugin, weapons::WeaponsPlugin, wreckage::WreckagePlugin};
+use crate::{asset_management::AssetManagementPlugin, bullet::BulletPlugin, camera::CameraPlugin, cargo::CargoPlugin, ceiling_light::CeilingLightPlugin, dialogue::DialoguePlugin, effect_sprite::EffectSpritePlugin, game::GamePlugin, game_physics::GamePhysicsPlugin, game_schedule::GameSchedulePlugin, game_state::GameStatePlugin, health::HealthPlugin, lightning::LightningPlugin, map::MapPlugin, movement::MovementPlugin, player::PlayerPlugin, prompt::PromptPlugin, sensor::SensorPlugin, shaders::ShaderPlugin, static_lights::StaticLightsPlugin, trigger::TriggerPlugin, turret::TurretPlugin, weapons::WeaponsPlugin, wreckage::WreckagePlugin};
 
 
 const APP_NAME: &str = "Caves";
@@ -88,6 +89,7 @@ fn main() {
       SensorPlugin,
       TriggerPlugin,
       DialoguePlugin,
+      LightningPlugin,
     ))
     .insert_resource(ClearColor(Color::srgb(0., 0., 0.)))
     .insert_resource(GlobalAmbientLight {

@@ -3,7 +3,7 @@ use core::f32;
 use avian3d::prelude::{AngularDamping, Collider, CollisionLayers, DistanceJoint, Forces, LockedAxes, MaxAngularSpeed, PhysicsLayer, RigidBody, RigidBodyForces, SpatialQuery, SpatialQueryFilter, TransformInterpolation, WriteRigidBodyForces};
 use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, prelude::*, time::Stopwatch};
 use bevy_enhanced_input::prelude::*;
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::{GameLayer, PhysicsBody}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::Hurtable, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::{GameLayer, PhysicsBody}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::Hurtable, lightning::LightningMaterials, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};
 
 const PLAYER_LIGHT_BASE:f32 = 5_000_000.;
 const PLAYER_LIGHT_THRUST:f32 = 15_000_000.;
@@ -356,7 +356,7 @@ fn on_add_tether(
   mut query:Query<&mut Tether>,
   mut commands:Commands,
   player_resources: Res<PlayerResources>,
-  shader_materials: Res<ShaderMaterials>,
+  shader_materials: Res<LightningMaterials>,
 ){
   if let Ok(mut tether) = query.get_mut(trigger.entity){
     let tether_effect = commands.spawn((
