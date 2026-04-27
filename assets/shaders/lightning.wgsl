@@ -40,8 +40,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
   let uv = in.uv;
 
   // draw a line, left side is fixed
-  let t1 = uv * vec2(2.0,1.0) - globals.time * 3.0;
-  let t2 = (vec2(1.,-1.) + uv) * vec2(2.0,1.0) - globals.time*3.0; // a second strand
+  let t1 = uv * vec2(2.0,1.0) - globals.time * 1.0;
+  let t2 = (vec2(1.,-1.) + uv) * vec2(2.0,1.0) - globals.time*6.0; // a second strand
   
   // draw the lines,
 //  this make the left side fixed, can be useful
@@ -55,9 +55,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
   let c1 = 1.0 - mix(0.0,1.0,diff*20.0);
   
   let diff2 = abs(uv.y - ycenter2);
-  let c2 = 1.0 - mix(0.0,1.0,diff2*20.0);
+  let c2 = 1.0 - mix(0.0,1.0,diff2*8.0);
   
-  if c1 > c2{
+  if  c2 < c1{
     return c1 * primary_col; 
   }
   else{

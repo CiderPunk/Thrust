@@ -1,4 +1,7 @@
-use bevy::{prelude::*, render::render_resource::AsBindGroup, shader::ShaderRef};
+use bevy::{light::NotShadowCaster, prelude::*, render::render_resource::AsBindGroup, shader::ShaderRef};
+
+use bevy::color::ColorToComponents;
+
 
 pub struct ShaderPlugin;
 impl Plugin for ShaderPlugin{
@@ -8,7 +11,8 @@ impl Plugin for ShaderPlugin{
         .add_plugins(MaterialPlugin::<RaysShaderMaterial>::default())
         .add_plugins(MaterialPlugin::<ShieldShaderMaterial>::default())
         .add_plugins(MaterialPlugin::<LightningShaderMaterial>::default())
-        .add_systems(PreStartup, init_materials);
+        .add_systems(PreStartup, init_materials)
+        .add_observer(lighting_material_substitute);
 
     }
 }
@@ -91,7 +95,6 @@ impl Material for ShieldShaderMaterial {
 }
 
 
-
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct LightningShaderMaterial {
   
@@ -110,4 +113,54 @@ impl Material for LightningShaderMaterial {
   fn alpha_mode(&self) -> AlphaMode {
     self.alpha_mode
   }
+}
+
+
+#[derive(Component, Default, Reflect, Debug)]
+#[reflect(Component, Default)]
+#[type_path = "api"]
+struct LightningMaterial{
+  primary:Color,
+  secondary:Color,
+}
+
+
+
+
+fn lighting_material_substitute(
+  event: On<Add, LightningMaterial>,
+  query:Query<&LightningMaterial>,
+  mut commands:Commands,
+  mut lightning_materials: ResMut<Assets<LightningShaderMaterial>>,
+){
+
+  let Ok(mat) = query.get(event.entity) else{ return; };
+  
+  let material = lightning_materials.add(LightningShaderMaterial{
+    alpha_mode: AlphaMode::Premultiplied,
+    primary_col: LinearRgba::from(mat.primary).to_vec4(),
+    secondary_col:LinearRgba::from(mat.secondary).to_vec4(),
+  });
+
+  let light= commands.spawn((
+        Transform::from_xyz(0.,0.,0.),
+        PointLight {
+          intensity: 1_000_000.0,
+          range: 100.,
+          color: mat.primary,
+          ..default()
+        },
+      )).id();
+  commands
+    .entity(event.entity)
+    .remove::<MeshMaterial3d<StandardMaterial>>()
+    .insert((
+      NotShadowCaster,
+      MeshMaterial3d(material)
+    ))
+    .add_child(  
+       light
+    );
+
+
 }
