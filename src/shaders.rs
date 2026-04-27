@@ -33,6 +33,8 @@ fn init_materials(
     }),
     tether: lightning_materials.add(LightningShaderMaterial{
       alpha_mode: AlphaMode::Premultiplied,
+      primary_col: Vec4::new(0.6, 0.2, 0.8, 1.),
+      secondary_col: Vec4::new(0.3, 0.05, 0.4, 1.),
     }),
 
   };
@@ -60,6 +62,8 @@ impl Material for RaysShaderMaterial{
   fn alpha_mode(&self) -> AlphaMode {
     self.alpha_mode
   }
+
+  //some BS to make this double sided
   fn specialize(
     _: &bevy::pbr::MaterialPipeline,
     descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
@@ -90,6 +94,12 @@ impl Material for ShieldShaderMaterial {
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct LightningShaderMaterial {
+  
+  #[uniform(0)]
+  primary_col: Vec4,
+    
+  #[uniform(1)]
+  secondary_col: Vec4,
   alpha_mode: AlphaMode,
 }
 

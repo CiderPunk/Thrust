@@ -5,12 +5,13 @@
     forward_io::VertexOutput,
 }
 
+@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> primary_col: vec4<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(1) var<uniform> secondary_col: vec4<f32>;
 
 
 fn rand(n:vec2<f32>)->f32{
   return fract(sin(dot(n, vec2(12.9898,4.1414))) * 43758.5453);
 }
-
 
 fn noise(n:vec2<f32>)->f32{
   const d = vec2(0.0, 1.0);
@@ -37,17 +38,16 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
   let col = vec4(0.,0.,0.,1.);
   let uv = in.uv;
-  
-  
+
   // draw a line, left side is fixed
-  let t = uv * vec2(2.0,1.0) - globals.time * 3.0;
+  let t1 = uv * vec2(2.0,1.0) - globals.time * 3.0;
   let t2 = (vec2(1.,-1.) + uv) * vec2(2.0,1.0) - globals.time*3.0; // a second strand
   
   // draw the lines,
 //  this make the left side fixed, can be useful
 //  float ycenter = mix( 0.5, 0.25 + 0.25*fbm( t ), uv.x*4.0);
 //    float ycenter2 = mix( 0.5, 0.25 + 0.25*fbm( t2 ), uv.x*4.0);
-  let ycenter = fbm(t)*0.5;
+  let ycenter = fbm(t1)*0.5;
   let ycenter2= fbm(t2)*0.5;
 
   // falloff
@@ -57,6 +57,11 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
   let diff2 = abs(uv.y - ycenter2);
   let c2 = 1.0 - mix(0.0,1.0,diff2*20.0);
   
-  let c = max(c1,c2);
-  return vec4(c2*0.2,0.6*c,c,c); 
+  if c1 > c2{
+    return c1 * primary_col; 
+  }
+  else{
+    return c2 * secondary_col;
+  }
+  
 }
