@@ -1,4 +1,9 @@
+use std::time::Duration;
+
 use bevy::{light::NotShadowCaster, prelude::*, render::render_resource::AsBindGroup, shader::ShaderRef};
+use bevy_prng::WyRand;
+use bevy_rand::global::GlobalRng;
+use rand::Rng;
 
 pub struct LightningPlugin;
 
@@ -8,6 +13,7 @@ impl Plugin for LightningPlugin{
         .init_resource::<LightningMaterials>()
         .add_plugins(MaterialPlugin::<LightningShaderMaterial>::default())
         .add_systems(PreStartup, init_lightning)
+        .add_systems(Update, lightning_flicker)
         .add_observer(lighting_material_substitute);
   }
 }
@@ -66,12 +72,11 @@ struct LightningMaterial{
 }
 
 
-
-
-
-
 #[derive(Component)]
-struct LightningPointLight;
+struct LightningPointLight{
+  timer:Timer,
+}
+
 
 
 fn lighting_material_substitute(
@@ -89,16 +94,18 @@ fn lighting_material_substitute(
     secondary_col:LinearRgba::from(mat.secondary).to_vec4(),
   });
 
-  let light= commands.spawn((
-        LightningPointLight,
-        Transform::from_xyz(0.,0.,0.),
-        PointLight {
-          intensity: 1_000_000.0,
-          range: 100.,
-          color: mat.primary,
-          ..default()
-        },
-      )).id();
+  let light = commands.spawn((
+    LightningPointLight{ 
+      timer: Timer::from_seconds(0.1, TimerMode::Repeating) 
+    },
+    Transform::from_xyz(0.,0.,0.),
+    PointLight {
+      intensity: 1_000_000.0,
+      range: 100.,
+      color: mat.primary,
+      ..default()
+    },
+  )).id();
   commands
     .entity(event.entity)
     .remove::<MeshMaterial3d<StandardMaterial>>()
@@ -110,5 +117,18 @@ fn lighting_material_substitute(
       light
     );
 
+}
 
+fn lightning_flicker(
+  query:Query<(&mut LightningPointLight, &mut PointLight)>,
+  time:Res<Time>,
+  mut rng: Single<&mut WyRand, With<GlobalRng>>
+){
+  for (mut lightning, mut light) in query{
+    lightning.timer.tick(time.delta());
+    if lightning.timer.is_finished(){
+      lightning.timer.set_duration(Duration::from_secs_f32(rng.random_range(0.05 .. 0.1)));
+      light.intensity = rng.random_range(100_000.0 .. 1_000_000.0)
+    }
+  }
 }
