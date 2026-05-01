@@ -34,11 +34,20 @@ struct CollisionHull{
 #[reflect(Component, Default)]
 #[type_path = "api"]
 struct MovingBlockSettings{
+  //where this moves to
   displacement:Vec3,
+  //time to make the move
   movement_time:f32,
-  leave_mesh:bool,
+  //leave the child collider mesh visible
+  leave_collider:bool,
+  //initial direction of movement
   direction:MovementDirection,
+  //progress through first movement
   init_state:f32,
+  //if the movement should continue and flkip after reaching the end
+  oscilate:bool,
+  //time to spend at each end
+  pause_time:f32,
 }
 
 
@@ -47,7 +56,9 @@ struct MovingBlock{
   start_transform:Transform,
   end_transform:Transform,
   time:Timer,
+  pause_timer:Timer,
   direction:MovementDirection,
+  oscilator:bool,
 }
 
 
@@ -78,36 +89,42 @@ enum MovementDirection{
 
 
 fn init_moving_blocks(
-  mut query: Query<(&mut Visibility, Entity, &MovingBlockSettings, &Transform)>, 
+  mut query: Query<(Entity, &MovingBlockSettings, &Transform)>, 
   child_query: Query<&Children>,
   collider_query:Query<(&Mesh3d, Entity), With<ColliderMesh>>,
   mut commands:Commands,
   meshes: ResMut<Assets<Mesh>>,
 ){
- for (mut visiblity, entity, settings, transform) in query.iter_mut() {
+ for (entity, settings, transform) in query.iter_mut() {
     info!("moving block found: {:?}", entity);
+    let end_transform = transform.with_translation(transform.translation + settings.displacement);
+    let mut time = Timer::from_seconds(settings.movement_time, TimerMode::Once);
+    time.set_elapsed(Duration::from_secs_f32(settings.movement_time * settings.init_state));
+    commands.entity(entity)
+    .insert(
+      MovingBlock{
+        start_transform: *transform, 
+        end_transform,
+        time,
+        direction:settings.direction.clone(),
+        oscilator:settings.oscilate,
+        pause_timer: Timer::from_seconds(settings.pause_time, TimerMode::Once),
+      }
+    )
+    .observe(trigger_movement);
+
     for child in child_query.iter_descendants(entity){
       if let Ok((collider_mesh, collider_entity)) = collider_query.get(child){
         info!("found collider for: {:?}", entity);
         if let Some(mesh) = meshes.get(collider_mesh){
           if let Some(collider) = Collider::convex_hull_from_mesh(mesh){
-            let end_transform = transform.with_translation(transform.translation + settings.displacement);
             info!("moving block setup complete: {:?}", entity);
-            let mut time = Timer::from_seconds(settings.movement_time, TimerMode::Once);
-            time.set_elapsed(Duration::from_secs_f32(settings.movement_time * settings.init_state));
             commands.entity(entity)
-              .insert((
-                collider,
-                RigidBody::Kinematic,
-                MovingBlock{
-                  start_transform: *transform, 
-                  end_transform,
-                  time,
-                  direction:settings.direction.clone(),
-                }
-              ))
-              .observe(trigger_movement);
-            if !settings.leave_mesh{
+            .insert((
+              collider,
+              RigidBody::Kinematic,
+            ));
+            if !settings.leave_collider{
               commands.entity(collider_entity).despawn();
             }
           }
@@ -146,7 +163,21 @@ fn move_blocks(
   time:Res<Time>,
 ){
   for (mut transform, mut block) in query.iter_mut(){
-    if block.time.is_finished(){ continue; }
+    if block.time.is_finished(){ 
+      if block.oscilator{
+        block.pause_timer.tick(time.delta());
+        if block.pause_timer.is_finished(){
+          info!("reversing moveing block");
+          block.direction = match block.direction {
+            MovementDirection::Forward => MovementDirection::Backward,
+            MovementDirection::Backward => MovementDirection::Forward,
+          };
+          block.time.reset();
+          block.pause_timer.reset();
+        }
+      }
+      continue; 
+    }
     block.time.tick(time.delta());
     let fraction = block.time.fraction();
     let points = match block.direction{

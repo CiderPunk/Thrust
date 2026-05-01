@@ -173,7 +173,7 @@ fn trigger_relay(
 
           if trigger_relay.reset.is_some(){
             commands.entity(event.entity).insert(TriggerDelay{
-              timer:Timer::from_seconds(trigger_relay.delay.unwrap(),TimerMode::Once),
+              timer:Timer::from_seconds(trigger_relay.reset.unwrap(),TimerMode::Once),
               state:!event.state,
               is_reset: true,
             });

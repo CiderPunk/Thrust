@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use bevy::{light::NotShadowCaster, prelude::*, render::render_resource::AsBindGroup, shader::ShaderRef};
+use bevy::{light::NotShadowCaster, prelude::*, render::render_resource::{AsBindGroup, ShaderType}, shader::ShaderRef};
 use bevy_prng::WyRand;
 use bevy_rand::global::GlobalRng;
 use rand::Rng;
@@ -9,12 +9,12 @@ pub struct LightningPlugin;
 
 impl Plugin for LightningPlugin{
   fn build(&self, app: &mut App) {
-      app
-        .init_resource::<LightningMaterials>()
-        .add_plugins(MaterialPlugin::<LightningShaderMaterial>::default())
-        .add_systems(PreStartup, init_lightning)
-        .add_systems(Update, lightning_flicker)
-        .add_observer(lighting_material_substitute);
+    app
+      .init_resource::<LightningMaterials>()
+      .add_plugins(MaterialPlugin::<LightningShaderMaterial>::default())
+      .add_systems(PreStartup, init_lightning)
+      .add_systems(Update, lightning_flicker)
+      .add_observer(lighting_material_substitute);
   }
 }
 
@@ -35,6 +35,7 @@ fn init_lightning(
     tether: lightning_materials.add(LightningShaderMaterial{
       alpha_mode: AlphaMode::Premultiplied,
       primary_col: Vec4::new(0.6, 0.2, 0.8, 1.),
+      settings: LightningSettings { beam_a_size:12., beam_b_size: 20., beam_a_speed: 1., beam_b_speed: 6. },
       secondary_col: Vec4::new(0.3, 0.05, 0.4, 1.),
     }),
 
@@ -50,6 +51,10 @@ pub struct LightningShaderMaterial {
     
   #[uniform(1)]
   secondary_col: Vec4,
+
+  #[uniform(2)]
+  settings: LightningSettings,
+
   alpha_mode: AlphaMode,
 }
 
@@ -91,6 +96,7 @@ fn lighting_material_substitute(
   let material = lightning_materials.add(LightningShaderMaterial{
     alpha_mode: AlphaMode::Premultiplied,
     primary_col: LinearRgba::from(mat.primary).to_vec4(),
+    settings: LightningSettings { beam_a_size: 20., beam_b_size: 12., beam_a_speed: 1., beam_b_speed: 6. },
     secondary_col:LinearRgba::from(mat.secondary).to_vec4(),
   });
 
@@ -101,7 +107,7 @@ fn lighting_material_substitute(
     Transform::from_xyz(0.,0.,0.),
     PointLight {
       intensity: 1_000_000.0,
-      range: 100.,
+      range: 300.,
       color: mat.primary,
       ..default()
     },
@@ -131,4 +137,12 @@ fn lightning_flicker(
       light.intensity = rng.random_range(100_000.0 .. 1_000_000.0)
     }
   }
+}
+
+#[derive(Default, Clone, Copy, AsBindGroup, Debug, ShaderType)]
+pub struct LightningSettings{
+  beam_a_size:f32,  
+  beam_b_size:f32,  
+  beam_a_speed:f32,  
+  beam_b_speed:f32,
 }

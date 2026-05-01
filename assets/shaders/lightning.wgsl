@@ -1,13 +1,22 @@
 //ported from https://www.shadertoy.com/view/Mds3W7
 
 #import bevy_pbr::{
-    mesh_view_bindings::globals,
-    forward_io::VertexOutput,
+  mesh_view_bindings::globals,
+  forward_io::VertexOutput,
 }
+
+
+struct LightningSettings {
+  beam_a_size: f32,
+  beam_b_size: f32,
+  beam_a_speed:f32,
+  beam_b_speed:f32,
+}
+
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> primary_col: vec4<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(1) var<uniform> secondary_col: vec4<f32>;
-
+@group(#{MATERIAL_BIND_GROUP}) @binding(2) var<uniform> lightning_settings: LightningSettings;
 
 fn rand(n:vec2<f32>)->f32{
   return fract(sin(dot(n, vec2(12.9898,4.1414))) * 43758.5453);
@@ -40,8 +49,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
   let uv = in.uv;
 
   // draw a line, left side is fixed
-  let t1 = uv * vec2(2.0,1.0) - globals.time * 1.0;
-  let t2 = (vec2(1.,-1.) + uv) * vec2(2.0,1.0) - globals.time*6.0; // a second strand
+  let t1 = uv * vec2(2.0,1.0) - globals.time*lightning_settings.beam_a_speed;
+  let t2 = (vec2(1.,-1.) + uv) * vec2(2.0,1.0) - globals.time*lightning_settings.beam_b_speed; // a second strand
   
   // draw the lines,
 //  this make the left side fixed, can be useful
@@ -52,10 +61,10 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 
   // falloff
   let diff = abs(uv.y - ycenter);
-  let c1 = 1.0 - mix(0.0,1.0,diff*20.0);
+  let c1 = 1.0 - mix(0.0,1.0,diff*lightning_settings.beam_a_size);
   
   let diff2 = abs(uv.y - ycenter2);
-  let c2 = 1.0 - mix(0.0,1.0,diff2*12.0);
+  let c2 = 1.0 - mix(0.0,1.0,diff2*lightning_settings.beam_b_size);
   
   if  c2 < c1{
     return c1 * primary_col; 

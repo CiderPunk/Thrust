@@ -4,9 +4,7 @@
       "name":"door1-opener",
       "targets":[ "door1" ],
       "invert":false,
-      "delay":1.0,
-      "repeat":true,
-      "reset":5.0
+      "repeat":true
     }
   ],
   "dialogues":[]
