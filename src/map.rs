@@ -1,16 +1,19 @@
 use std::time::Duration;
 
-use avian3d::prelude::*;
-use bevy::prelude::*;
+use avian3d::{data_structures::graph::NodeIndex, prelude::*};
+use bevy::{animation::{AnimatedBy, AnimationTargetId}, platform::collections::HashMap, prelude::*};
 
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, trigger::TriggerEvent};
 pub struct MapPlugin;
 impl Plugin for MapPlugin {
   fn build(&self, app: &mut App) {
     app
+      .init_resource::<AnimationGraphHandles>()
       .add_systems(OnEnter(AssetLoadState::Loaded), spawn_map)
       .add_systems(OnEnter(GameState::Initialize), (init_collision_hulls, init_moving_blocks))
-      .add_systems(FixedUpdate, move_blocks.in_set(GameSchedule::MoveEntities ));
+      .add_systems(FixedUpdate, move_blocks.in_set(GameSchedule::MoveEntities ))
+      .add_observer(init_animation)
+      ;
   }
 }
 
@@ -20,6 +23,11 @@ impl Plugin for MapPlugin {
 #[type_path = "api"]
 struct ColliderMesh;
 
+#[derive(Component, Default, Reflect, Debug)]
+#[reflect(Component, Default)]
+#[type_path = "api"]
+struct Animated;
+
 
 
 #[derive(Component, Default, Reflect, Debug)]
@@ -27,6 +35,16 @@ struct ColliderMesh;
 #[type_path = "api"]
 struct CollisionHull{
   leave_mesh:bool,
+}
+
+
+
+#[derive(Resource, FromWorld)]
+struct AnimationGraphHandles(HashMap<String,GraphDetails>);
+
+struct GraphDetails{
+  idx:AnimationNodeIndex,
+  handle:Handle<AnimationGraph>,
 }
 
 
@@ -67,13 +85,27 @@ fn spawn_map(
   game_assets: Res<GameAssets>,
   gltf_assets: Res<Assets<Gltf>>,
   mut next_state: ResMut<NextState<GameState>>,
+  mut animation_handles:ResMut<AnimationGraphHandles>,
+  mut animation_graphs: ResMut<Assets<AnimationGraph>>,
 )->Result<()> {
   let map = gltf_assets.get(&game_assets.map_model).ok_or("Couldn't get map")?;
-  commands.spawn( 
+  let root = commands.spawn( 
     SceneRoot(map.scenes[0].clone())
-  );
+  ).id();
+
+  for  animation in  map.named_animations.iter(){
+
+    let (graph,idx) = AnimationGraph::from_clip(animation.1.clone());
+    let handle = animation_graphs.add(graph);
+    animation_handles.0.insert(animation.0.to_string(), GraphDetails { idx, handle });
+  }
+
+  let anim = map.named_animations.get("spin");
+
+  info!("Spin anim: {:?}",anim); 
+
   // Placeholder for map spawning logic
-  info!("Map spawned!");
+  info!("Map spawned! {}", root);
   //start initialization
   next_state.set(GameState::Initialize);
   Ok(())
@@ -209,7 +241,39 @@ fn init_collision_hulls(
   }
 }
 
+fn init_animation(
+  event:On<Add, AnimationPlayer>,
+  mut query:Query<&mut AnimationPlayer>,
+  animation_handles:Res<AnimationGraphHandles>,
+  mut commands:Commands,
+){
+  info!("Animaton player found {}", event.entity);
+  if let Ok(mut player) = query.get_mut(event.entity){
+    info!("Animating" );
 
+    if let Some(anim_deets) = animation_handles.0.get("spin"){
+      info!("starting spin anim");
+      commands.entity(event.entity).insert(AnimationGraphHandle(anim_deets.handle.clone()));
+      player.play(anim_deets.idx).repeat();
 
+    };
+  }; 
+}
 
+/*
+fn init_animation(
+  event:On<Add, AnimationPlayer>,
+  query:Query<&AnimationPlayer>,
+  game_assets: Res<GameAssets>,
+  gltf_assets: Res<Assets<Gltf>>,
+){
 
+  if let Some(map) = gltf_assets.get(&game_assets.map_model){
+    if let Ok(player) = query.get(event.entity){
+      for &anim in map.animations.iter(){
+      anim.
+      }
+    }; 
+  };
+}
+   */

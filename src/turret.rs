@@ -270,7 +270,7 @@ fn deploy_turret(
 ){
   for (mut deploy, turret_transform, components, tracking, entity) in query{
     deploy.timer.tick(time.delta());
-    let tower_angle = match(tracking){
+    let tower_angle = match tracking{
       Some(tracking) => {
         match target_query.get(tracking.target){
           Ok(target_transform) => {

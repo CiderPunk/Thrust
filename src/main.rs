@@ -25,7 +25,9 @@ mod dialogue;
 mod lightning;
 
 use bevy::{asset::AssetMetaCheck, color::palettes::css::WHITE, prelude::*};
+use bevy_egui::EguiPlugin;
 use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_skein::SkeinPlugin;
 use avian3d::prelude::*;
 use bevy_prng::WyRand;
@@ -56,6 +58,9 @@ fn main() {
           ..default()
         }),
       )
+
+    //.add_plugins(EguiPlugin::default())
+    //.add_plugins(WorldInspectorPlugin::new())
     .add_plugins(EntropyPlugin::<WyRand>::default())
     .add_plugins((
       SkeinPlugin::default(), 
