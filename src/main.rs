@@ -67,7 +67,7 @@ fn main() {
       PhysicsPlugins::default(),
       EnhancedInputPlugin,
       GamePhysicsPlugin,
-      //PhysicsDebugPlugin,
+    //  PhysicsDebugPlugin,
     ))
     .add_plugins((
       GameSchedulePlugin,

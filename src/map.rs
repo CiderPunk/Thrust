@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use avian3d::{data_structures::graph::NodeIndex, prelude::*};
-use bevy::{animation::{AnimatedBy, AnimationTargetId}, platform::collections::HashMap, prelude::*};
+use avian3d::prelude::*;
+use bevy::{platform::collections::HashMap, prelude::*};
 
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, trigger::TriggerEvent};
 pub struct MapPlugin;
@@ -10,7 +10,7 @@ impl Plugin for MapPlugin {
     app
       .init_resource::<AnimationGraphHandles>()
       .add_systems(OnEnter(AssetLoadState::Loaded), spawn_map)
-      .add_systems(OnEnter(GameState::Initialize), (init_collision_hulls, init_moving_blocks))
+      .add_systems(OnEnter(GameState::Initialize), (init_collision_hulls, init_dynamic_collision_hulls, init_moving_blocks))
       .add_systems(FixedUpdate, move_blocks.in_set(GameSchedule::MoveEntities ))
       .add_observer(init_animation)
       ;
@@ -26,8 +26,16 @@ struct ColliderMesh;
 #[derive(Component, Default, Reflect, Debug)]
 #[reflect(Component, Default)]
 #[type_path = "api"]
-struct Animated;
+struct Animated{
+  action:String,
+}
 
+#[derive(Component, Default, Reflect, Debug)]
+#[reflect(Component, Default)]
+#[type_path = "api"]
+struct DynamicCollisionHull{
+  leave_mesh:bool,
+}
 
 
 #[derive(Component, Default, Reflect, Debug)]
@@ -94,17 +102,12 @@ fn spawn_map(
   ).id();
 
   for  animation in  map.named_animations.iter(){
-
     let (graph,idx) = AnimationGraph::from_clip(animation.1.clone());
+    //info!("action name: '{}' anim: {:?}  graph: {:?}", animation.0, animation.1, graph);
     let handle = animation_graphs.add(graph);
     animation_handles.0.insert(animation.0.to_string(), GraphDetails { idx, handle });
   }
 
-  let anim = map.named_animations.get("spin");
-
-  info!("Spin anim: {:?}",anim); 
-
-  // Placeholder for map spawning logic
   info!("Map spawned! {}", root);
   //start initialization
   next_state.set(GameState::Initialize);
@@ -228,7 +231,7 @@ fn init_collision_hulls(
   mut commands: Commands,
 ) {
   for (mut visiblity,hull_entity, collision_hull) in query.iter_mut() {
-    info!("Collision hull found: {:?}", hull_entity);
+    //info!("Collision hull found: {:?}", hull_entity);
     commands.entity(hull_entity)
       .insert((
         ColliderConstructor::TrimeshFromMesh,
@@ -241,18 +244,36 @@ fn init_collision_hulls(
   }
 }
 
+fn init_dynamic_collision_hulls(
+  mut query: Query<(&mut Visibility, Entity, &DynamicCollisionHull), With<Mesh3d>>, 
+  mut commands: Commands,
+) {
+  for (mut visiblity,hull_entity, collision_hull) in query.iter_mut() {
+    //info!("Collision hull found: {:?}", hull_entity);
+    commands.entity(hull_entity)
+      .insert((
+        ColliderConstructor::ConvexHullFromMesh,
+        RigidBody::Kinematic,
+      ));
+
+    if !collision_hull.leave_mesh{
+      *visiblity = Visibility::Hidden;
+    }
+  }
+}
+
 fn init_animation(
   event:On<Add, AnimationPlayer>,
-  mut query:Query<&mut AnimationPlayer>,
+  mut query:Query<(&mut AnimationPlayer, &Animated)>,
   animation_handles:Res<AnimationGraphHandles>,
   mut commands:Commands,
 ){
   info!("Animaton player found {}", event.entity);
-  if let Ok(mut player) = query.get_mut(event.entity){
+  if let Ok((mut player, animated)) = query.get_mut(event.entity){
     info!("Animating" );
 
-    if let Some(anim_deets) = animation_handles.0.get("spin"){
-      info!("starting spin anim");
+    if let Some(anim_deets) = animation_handles.0.get(&animated.action){
+      info!("starting anim {}", animated.action);
       commands.entity(event.entity).insert(AnimationGraphHandle(anim_deets.handle.clone()));
       player.play(anim_deets.idx).repeat();
 
