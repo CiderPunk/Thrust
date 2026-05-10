@@ -270,7 +270,7 @@ fn init_animation(
 ){
   info!("Animaton player found {}", event.entity);
   if let Ok((mut player, animated)) = query.get_mut(event.entity){
-    info!("Animating" );
+    info!("Attempting to start animation clip {}", animated.action );
 
     if let Some(anim_deets) = animation_handles.0.get(&animated.action){
       info!("starting anim {}", animated.action);

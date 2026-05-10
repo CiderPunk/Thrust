@@ -59,8 +59,8 @@ fn main() {
         }),
       )
 
-    //.add_plugins(EguiPlugin::default())
-    //.add_plugins(WorldInspectorPlugin::new())
+    .add_plugins(EguiPlugin::default())
+    .add_plugins(WorldInspectorPlugin::new())
     .add_plugins(EntropyPlugin::<WyRand>::default())
     .add_plugins((
       SkeinPlugin::default(), 
