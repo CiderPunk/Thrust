@@ -1,4 +1,5 @@
 use core::slice;
+use std::time::Duration;
 use bevy::{platform::collections::HashMap, prelude::*, tasks::futures_lite::io::Repeat};
 
 use crate::{asset_management::GameAssets, dialogue::Dialogue, game_schedule::GameSchedule, game_state::GameState};
@@ -50,12 +51,14 @@ pub struct TriggerRelay{
   delay:Option<f32>,
   repeat:bool,
   invert:bool,
+  reset:Option<f32>,
 }
 
 #[derive(Component)]
 pub struct TriggerDelay{
   timer:Timer,
   state:bool,
+  is_reset:bool,
 }
 
 fn wire_triggers(
@@ -138,6 +141,7 @@ fn get_trigger_relay(
       delay:trigger_def.delay,
       repeat:  match trigger_def.repeat { Some(val) => val, None => true,},
       invert:  match trigger_def.invert { Some(val) => val, None => false,},
+      reset: trigger_def.reset,
     }
   ).observe(trigger_relay).id();
 
@@ -149,7 +153,7 @@ fn get_trigger_relay(
 
 fn trigger_relay(
   event:On<TriggerEvent>,
-  query:Query<&TriggerRelay>,
+  query:Query<&TriggerRelay, Without<TriggerDelay>>,
   mut commands:Commands,
 ){
   info!("Relayed event {} {}", event.entity, event.state);
@@ -159,13 +163,22 @@ fn trigger_relay(
           commands.entity(event.entity).insert(TriggerDelay{
             timer:Timer::from_seconds(delay,TimerMode::Once),
             state:event.state,
+            is_reset:false,
           });
         },
         None => {
           for target in trigger_relay.targets.clone(){
             commands.trigger( TriggerEvent{ entity:target, state: trigger_relay.invert != event.state} );
           }
-          if !trigger_relay.repeat {
+
+          if trigger_relay.reset.is_some(){
+            commands.entity(event.entity).insert(TriggerDelay{
+              timer:Timer::from_seconds(trigger_relay.reset.unwrap(),TimerMode::Once),
+              state:!event.state,
+              is_reset: true,
+            });
+          }
+          else if !trigger_relay.repeat {
             commands.entity(event.entity).despawn();
           }
         },
@@ -173,19 +186,27 @@ fn trigger_relay(
   }
 }
 
+
 fn delay_trigger(
   query:Query<(&mut TriggerDelay, &TriggerRelay, Entity)>,
   mut commands:Commands,
   time:Res<Time>,
 ){
   for (mut delay, relay, entity) in query{
-    info!("delay timer: {}", delay.timer.elapsed_secs());
+    info!("delay timer: {} state: {} entity: {}", delay.timer.elapsed_secs(), delay.state, entity);
     delay.timer.tick(time.delta());
     if delay.timer.is_finished(){
       for target in relay.targets.clone(){
         commands.trigger( TriggerEvent{ entity:target, state: relay.invert != delay.state} );
       }
-      if !relay.repeat{
+      //re-use the timer for the reset
+      if !delay.is_reset && relay.reset.is_some(){
+        delay.timer.set_duration(Duration::from_secs_f32(relay.reset.unwrap()));
+        delay.timer.reset();
+        delay.is_reset = true;
+        delay.state = !delay.state;
+      }
+      else if !relay.repeat{
         commands.entity(entity).despawn();
       }
       else{
@@ -209,6 +230,7 @@ struct TriggerDef{
   delay:Option<f32>,
   invert:Option<bool>,
   repeat:Option<bool>,
+  reset:Option<f32>,
 }
 #[derive(serde::Deserialize, Asset, TypePath)]
 struct DialogueDef{

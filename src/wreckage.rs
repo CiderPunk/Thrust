@@ -1,7 +1,7 @@
 use avian3d::prelude::LinearVelocity;
 use bevy::{gltf::GltfMesh, prelude::*};
 
-use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::EffectSpriteMessage, get_gltf_primative, movement::Velocity, wreckage};
+use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::EffectSpriteMessage, get_gltf_primative };
 
 pub struct WreckagePlugin;
 
