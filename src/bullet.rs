@@ -33,9 +33,9 @@ pub struct Bullet{
 }
 
 impl Bullet{
-  pub fn from_vector(vec:Vec3, owner:Entity, time_to_live_seconds:f32, damage:f32, filter:SpatialQueryFilter) -> Self{
-    let direction = Dir3::new(vec).unwrap_or(Dir3::NEG_Z);
-    let speed = vec.length().max(0.001);
+  pub fn from_vector(velocity:Vec3, owner:Entity, time_to_live_seconds:f32, damage:f32, filter:SpatialQueryFilter) -> Self{
+    let direction = Dir3::new(velocity).unwrap_or(Dir3::NEG_Z);
+    let speed = velocity.length().max(0.001);
     Self{ 
       direction, 
       speed, 

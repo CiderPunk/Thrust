@@ -5,6 +5,9 @@ use bevy::{light::NotShadowCaster, math::VectorSpace, prelude::*};
 
 use crate::{bullet::{Bullet, BulletResources}, game_physics::GameLayer};
 
+
+
+      
 pub struct WeaponsPlugin;
 impl Plugin for WeaponsPlugin{
   fn build(&self, app: &mut App) {
@@ -24,16 +27,18 @@ pub struct ProjectileGun{
   fire_delay:Timer,
   cool_down:Timer,
   filter:SpatialQueryFilter,
+  bullet_velocity:f32,
 }
 
 impl ProjectileGun{
-  pub fn new(fire_delay:f32, cool_down:f32, filter:SpatialQueryFilter)->Self{
+  pub fn new(fire_delay:f32, cool_down:f32, filter:SpatialQueryFilter, bullet_velocity:f32)->Self{
     Self{ 
       firing:false,  
       fire_delay:Timer::from_seconds(fire_delay, TimerMode::Repeating),
       cool_down:Timer::from_seconds(cool_down,TimerMode::Once), 
       offset: Vec3::ZERO,
       filter:filter,
+      bullet_velocity,
     }
   }
 
@@ -90,7 +95,8 @@ fn update_projectile_gun(
     }
     if gun.fire_delay.is_finished(){ 
 
-      let mut velocity = transform.up() * 80.;
+      
+      let mut velocity = transform.up() * gun.bullet_velocity;
       velocity.z = 0.;
       if let Ok(mut forces) = parent_force_query.get_mut(child_of.0){
         forces.apply_linear_impulse(transform.up() * -20.);

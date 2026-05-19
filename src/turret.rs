@@ -4,8 +4,7 @@ use avian3d::prelude::*;
 use bevy::{ecs::relationship::DescendantIter, gltf::GltfMesh, math::{FloatPow, VectorSpace}, prelude::*};
 use crate::{asset_management::{AssetLoadState, GameAssets}, effect_sprite::{EFFECT_TYPE_SPLOSION, EffectSpriteMessage}, game_physics::GameLayer, game_state::GameState, get_gltf_primative, health::{Dead, Health, Hurtable}, player::Player, weapons::{AttachedWeapon, ProjectileGun, Weapon, WeaponAttachments}, wreckage::{Wreck, WreckResources}};
 
-
-
+const TURRET_BULLET_VELOCITY: f32 = 40.; 
 const TURRET_ACTIVATION_RANGE:f32 = 60.;
 const TURRET_SEARCH_TIMER:f32 = 5.;
 const DEPLOY_TIME: f32 = 0.5;
@@ -208,7 +207,7 @@ fn spawn_turrets(
         Weapon{
           ..Default::default()
         },
-        ProjectileGun::new(1.2, 1.2, SpatialQueryFilter::from_mask( GameLayer::Player.to_bits() | GameLayer::Cargo.to_bits() | GameLayer::Default.to_bits())),
+        ProjectileGun::new(1.2, 1.2, SpatialQueryFilter::from_mask( GameLayer::Player.to_bits() | GameLayer::Cargo.to_bits() | GameLayer::Default.to_bits()), TURRET_BULLET_VELOCITY),
         Transform::from_translation(Vec3::new(0.,-4.45,0.5)).with_rotation(Quat::from_axis_angle(Vec3::X, PI)),
         AttachedWeapon(turret),
       )],

@@ -31,8 +31,11 @@ fn remove_dead(
 pub struct Hurtable;
 
 
-#[derive(Component)]
+
+#[derive(Component, Default, Reflect, Debug)]
+#[reflect(Component, Default)]
 #[require(Hurtable)]
+#[type_path = "api"]
 pub struct Health{
   pub health:f32,
 }

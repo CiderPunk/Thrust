@@ -5,6 +5,10 @@ use bevy::{color::palettes::css::WHITE, gltf::GltfMesh, light::NotShadowCaster, 
 use bevy_enhanced_input::prelude::*;
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_physics::{GameLayer, PhysicsBody}, game_schedule::GameSchedule, game_state::GameState, get_gltf_primative, health::Hurtable, lightning::LightningMaterials, shaders::ShaderMaterials, weapons::{ProjectileGun, Weapon}};
 
+
+
+const PLAYER_BULLET_VELOCITY:f32 = 80.;
+
 const PLAYER_LIGHT_BASE:f32 = 5_000_000.;
 const PLAYER_LIGHT_THRUST:f32 = 15_000_000.;
 //const PLAYER_THRUST: f32 = 250.;
@@ -186,11 +190,16 @@ fn spawn_player(
       ]),
       children![(
           Weapon::default(),
-          ProjectileGun::new(0.5, 0.5, SpatialQueryFilter::from_mask(
-            GameLayer::Default.to_bits() | 
-            GameLayer::Enemy.to_bits() |
-            GameLayer::Cargo.to_bits()
-          )),
+          ProjectileGun::new(
+            0.5, 
+            0.5, 
+            SpatialQueryFilter::from_mask(
+              GameLayer::Default.to_bits() | 
+              GameLayer::Enemy.to_bits() |
+              GameLayer::Cargo.to_bits()
+            ),
+            PLAYER_BULLET_VELOCITY,
+          ),
           Transform::from_xyz(0.,0.,0.),
         ),
         (
