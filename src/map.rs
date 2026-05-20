@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use avian3d::prelude::*;
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{gltf::GltfMesh, platform::collections::HashMap, prelude::*};
 
 use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, trigger::TriggerEvent};
 pub struct MapPlugin;
@@ -10,7 +10,7 @@ impl Plugin for MapPlugin {
     app
       .init_resource::<AnimationGraphHandles>()
       .add_systems(OnEnter(AssetLoadState::Loaded), spawn_map)
-      .add_systems(OnEnter(GameState::Initialize), (init_collision_hulls, init_dynamic_collision_hulls, init_moving_blocks))
+      .add_systems(OnEnter(GameState::Initialize), (init_collision_hulls, init_dynamic_collision_hulls, init_dynamic_collision_hulls_child_mesh, init_moving_blocks))
       .add_systems(FixedUpdate, move_blocks.in_set(GameSchedule::MoveEntities ))
       .add_observer(init_animation)
       ;
@@ -243,6 +243,40 @@ fn init_collision_hulls(
     }
   }
 }
+
+fn init_dynamic_collision_hulls_child_mesh(
+  mut query: Query<(Entity, &DynamicCollisionHull, &Children), Without<Mesh3d>>, 
+  mut mesh_query:Query<&Mesh3d>,
+  mut meshes: ResMut<Assets<Mesh>>,
+  mut commands: Commands,
+) {
+  for (hull_entity, collision_hull, children) in query.iter_mut() {
+    //info!("Collision hull found: {:?}", hull_entity);
+    for child in children{
+      if let Ok(mesh3d) = mesh_query.get(*child){
+        if let Some(collision_mesh) = meshes.get(mesh3d){
+          let collider = Collider::convex_hull_from_mesh(collision_mesh);
+          commands.entity(hull_entity)
+            .insert((
+              collider.unwrap(),
+              RigidBody::Kinematic,
+            ));
+            if !collision_hull.leave_mesh{
+              commands.entity(*child).despawn();
+            }
+          break;
+        }
+      }
+    }
+    
+
+
+    //if !collision_hull.leave_mesh{
+    //  *visiblity = Visibility::Hidden;
+    //}
+  }
+}
+
 
 fn init_dynamic_collision_hulls(
   mut query: Query<(&mut Visibility, Entity, &DynamicCollisionHull), With<Mesh3d>>, 
