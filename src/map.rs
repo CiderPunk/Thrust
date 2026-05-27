@@ -10,10 +10,9 @@ impl Plugin for MapPlugin {
     app
       .init_resource::<AnimationGraphHandles>()
       .add_systems(OnEnter(AssetLoadState::Loaded), spawn_map)
-      .add_systems(OnEnter(GameState::Initialize), (init_collision_hulls, init_dynamic_collision_hulls, init_dynamic_collision_hulls_child_mesh, init_moving_blocks))
+      .add_systems(OnEnter(GameState::Initialize), (init_collision_hulls, init_dynamic_collision_hulls, init_dynamic_collision_hulls_child_mesh, init_moving_blocks, init_dead_models))
       .add_systems(FixedUpdate, move_blocks.in_set(GameSchedule::MoveEntities ))
-      .add_observer(init_animation)
-      ;
+      .add_observer(init_animation);
   }
 }
 
@@ -41,11 +40,19 @@ struct DynamicCollisionHull{
 #[derive(Component, Default, Reflect, Debug)]
 #[reflect(Component, Default)]
 #[type_path = "api"]
+struct AliveModel;
+
+#[derive(Component, Default, Reflect, Debug)]
+#[reflect(Component, Default)]
+#[type_path = "api"]
+struct DeadModel;
+
+#[derive(Component, Default, Reflect, Debug)]
+#[reflect(Component, Default)]
+#[type_path = "api"]
 struct CollisionHull{
   leave_mesh:bool,
 }
-
-
 
 #[derive(Resource, FromWorld)]
 struct AnimationGraphHandles(HashMap<String,GraphDetails>);
@@ -295,6 +302,17 @@ fn init_dynamic_collision_hulls(
     }
   }
 }
+
+
+
+fn init_dead_models(
+  mut query: Query<&mut Visibility, With<DeadModel>>, 
+) {
+  for mut visiblity in query.iter_mut() {
+    *visiblity = Visibility::Hidden;
+  }
+}
+
 
 fn init_animation(
   event:On<Add, AnimationPlayer>,

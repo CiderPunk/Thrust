@@ -38,6 +38,7 @@ pub struct Hurtable;
 #[type_path = "api"]
 pub struct Health{
   pub health:f32,
+  
 }
 
 
