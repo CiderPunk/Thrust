@@ -1,9 +1,9 @@
-use std::time::Duration;
+use std::{ops::Add, time::Duration};
 
 use avian3d::prelude::*;
 use bevy::{gltf::GltfMesh, platform::collections::HashMap, prelude::*};
 
-use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, trigger::TriggerEvent};
+use crate::{asset_management::{AssetLoadState, GameAssets}, game_schedule::GameSchedule, game_state::GameState, health::Dead, trigger::TriggerEvent};
 pub struct MapPlugin;
 impl Plugin for MapPlugin {
   fn build(&self, app: &mut App) {
@@ -35,7 +35,6 @@ struct Animated{
 struct DynamicCollisionHull{
   leave_mesh:bool,
 }
-
 
 #[derive(Component, Default, Reflect, Debug)]
 #[reflect(Component, Default)]
@@ -179,6 +178,14 @@ fn init_moving_blocks(
   }
 }
 
+
+fn on_dead(
+  event:On<Add, Dead>,
+	child_query:Query<&Children>,
+){
+
+}
+
 fn trigger_movement(
   event:On<TriggerEvent>,
   mut query:Query<&mut MovingBlock>,
@@ -253,8 +260,8 @@ fn init_collision_hulls(
 
 fn init_dynamic_collision_hulls_child_mesh(
   mut query: Query<(Entity, &DynamicCollisionHull, &Children), Without<Mesh3d>>, 
-  mut mesh_query:Query<&Mesh3d>,
-  mut meshes: ResMut<Assets<Mesh>>,
+  mesh_query:Query<&Mesh3d>,
+  meshes: ResMut<Assets<Mesh>>,
   mut commands: Commands,
 ) {
   for (hull_entity, collision_hull, children) in query.iter_mut() {
@@ -275,12 +282,6 @@ fn init_dynamic_collision_hulls_child_mesh(
         }
       }
     }
-    
-
-
-    //if !collision_hull.leave_mesh{
-    //  *visiblity = Visibility::Hidden;
-    //}
   }
 }
 
